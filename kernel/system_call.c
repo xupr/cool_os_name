@@ -8,7 +8,7 @@
 void *system_call_iterrupt_entry;
 
 void init_system_call(void){
-	create_IDT_descriptor(0x40, (unsigned int)&system_call_iterrupt_entry, 0x8, 0x8F);
+	create_IDT_descriptor(0x40, (unsigned int)&system_call_iterrupt_entry, 0x8, 0xEF);
 //	print("kappa123");
 }
 
@@ -17,7 +17,7 @@ void *system_call_interrupt(void){
 	asm("" : "=a"(system_call_name));
 	char *str;
 	int length;
-	void **heap;
+	static void *heap;
 	static FILE fd;
 	switch(system_call_name){
 		case PRINT:
@@ -31,14 +31,14 @@ void *system_call_interrupt(void){
 			break;
 
 		case HEAP_START:
-			asm("" : "=d"(heap));
-			*heap = get_heap_start(get_current_process()); 
+			heap = get_heap_start(get_current_process()); 
+			return (void *)&heap;
 			break;
 		
 		case OPEN:
 			asm("" : "=d"(str));
 			fd = open(str);
-			return fd;
+			return &fd;
 		//	asm("pop eax;popa");
 		//	asm("" : : "a"(fd));
 		//	asm("iret");
@@ -54,6 +54,8 @@ void *system_call_interrupt(void){
 			read(fd, str, length);
 			break;
 
-	}	
+	}
+
+	return 0;
 	//print();
 }

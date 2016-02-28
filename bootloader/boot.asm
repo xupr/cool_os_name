@@ -239,6 +239,33 @@ gdt:
 		at gdt_descriptor.base_high, db 0
 	iend
 
+	istruc gdt_descriptor
+		at gdt_descriptor.limit_low, dw 0xFFFF
+		at gdt_descriptor.base_low, dw 0x0000
+		at gdt_descriptor.base_mid, db 0x0
+		at gdt_descriptor.access, db 0b11111010
+		at gdt_descriptor.flags_limit_high, db 0b11001111
+		at gdt_descriptor.base_high, db 0
+	iend
+
+	istruc gdt_descriptor
+		at gdt_descriptor.limit_low, dw 0xFFFF
+		at gdt_descriptor.base_low, dw 0x000
+		at gdt_descriptor.base_mid, db 0x0
+		at gdt_descriptor.access, db 0b11110010
+		at gdt_descriptor.flags_limit_high, db 0b11001111
+		at gdt_descriptor.base_high, db 0
+	iend
+	
+	istruc gdt_descriptor
+		at gdt_descriptor.limit_low, dw 104
+		at gdt_descriptor.base_low, dw 0
+		at gdt_descriptor.base_mid, db 0x0
+		at gdt_descriptor.access, db 0x89
+		at gdt_descriptor.flags_limit_high, db 0b01000000
+		at gdt_descriptor.base_high, db 0
+	iend
+
 ;	istruc gdt_descriptor
 ;		at gdt_descriptor.limit_low, dw 0x1000
 ;		at gdt_descriptor.base_low, dw 0x0000
@@ -249,9 +276,9 @@ gdt:
 ;	iend
 
 gdt_description_structure:
-	size dw 23
+	size dw 47
 	offset dd 0
-HelloString db 'Yes This Is The Bootloader\n', 0	;HelloWorld string ending with 0
+HelloString db 'hello', 0	;HelloWorld string ending with 0
 Fail db 'oops', 0
 
 

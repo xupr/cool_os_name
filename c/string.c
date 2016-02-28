@@ -29,6 +29,12 @@ void *memcpy(void *dst, void *src, int count){
 	return temp_dst;
 }
 
+void *memset(void *dst, char data, int count){
+	void *temp_dst = dst;
+	while(count--) *(char *)dst++ = data;
+	return temp_dst;
+}
+
 int strlen(char *str){
 	int length = 0;
 	while(*str++) ++length;

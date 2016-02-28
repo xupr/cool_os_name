@@ -121,6 +121,25 @@ void keyboard_command_char(scan_code_set3 scan_code, key_state state){
 	return;
 }
 
+void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){
+	if(state == KEY_DOWN){
+		switch(scan_code){
+			case SCS3_UP:
+				scroll_lines(-1);
+				break;
+			case SCS3_DOWN:
+				scroll_lines(1);
+				break;
+			case SCS3_PAGEUP:
+				scroll_pages(-1);
+				break;
+			case SCS3_PAGEDOWN:
+				scroll_pages(1);
+				break;
+		}
+	}
+}
+
 void init_keyboard_behavior(void){
 	int i;
 	for(i = 0; i < 256; KEYBOARD_BEHAVIOR[i++] = create_list())i;
@@ -278,6 +297,10 @@ void init_keyboard_behavior(void){
 
 	add_keyboard_event(SCS3_LSHIFT, keyboard_command_char);
 	add_keyboard_event(SCS3_RSHIFT, keyboard_command_char);
+	add_keyboard_event(SCS3_UP, keyboard_scroll_command);
+	add_keyboard_event(SCS3_DOWN, keyboard_scroll_command);
+	add_keyboard_event(SCS3_PAGEUP, keyboard_scroll_command);
+	add_keyboard_event(SCS3_PAGEDOWN, keyboard_scroll_command);
 	return;
 }
 

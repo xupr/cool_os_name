@@ -9,6 +9,7 @@
 #include "../headers/memory.h"
 #include "../headers/process.h"
 #include "../headers/system_call.h"
+#include "../headers/exception.h"
 
 void init(char *memory_map_length, void *memory_map);
 
@@ -27,6 +28,7 @@ void init(char *memory_map_length, void *memory_map){
 	init_heap();
 	init_interrupts();
 	init_screen();
+	init_exception();
 	init_system_call();
 	init_memory(memory_map_length, memory_map);
 	init_keyboard();
@@ -37,6 +39,8 @@ void init(char *memory_map_length, void *memory_map){
 	//PAGE_TABLE safta_table = create_page_table();
 //	allocate_memory(safta_table, (void *)0xFFF, 32);
 	execute("safta.o");
+//	open("safta.txt");
+//	open("saba.txt");
 /*	FILE safta = open("safta.txt");	
 	//print(itoa((unsigned int)safta));
 	write(safta, "hello this is safta", 20);

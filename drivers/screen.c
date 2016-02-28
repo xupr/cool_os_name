@@ -12,8 +12,9 @@
 #define MAXIMUM_SCAN_LINE_REGISTER_INDEX 0x9
 #define HORIZONTAL_TOTAL_REGISTER_INDEX 0x0
 #define VERTICAL_TOTAL_REGISTER_INDEX 0x6
+#define START_ADDRESS_LOW_REGISTER_INDEX 0xD
 
-#define ROW 25
+#define ROWS 25
 #define COLUMNS 80
 
 void init_cursor(void);
@@ -47,6 +48,22 @@ void init_screen(void){
 	init_cursor();
 	//set_cursor(5);
 	return;
+}
+
+void scroll_lines(int count){
+	outb(CRT_ADDRESS_REGISTER, START_ADDRESS_LOW_REGISTER_INDEX);
+	char offset = inb(CRT_DATA_REGISTER) + count*COLUMNS;
+	if(offset < 0)
+		offset = 0;
+	outb(CRT_DATA_REGISTER, offset);
+}
+
+void scroll_pages(int count){
+	outb(CRT_ADDRESS_REGISTER, START_ADDRESS_LOW_REGISTER_INDEX);
+	char offset = inb(CRT_DATA_REGISTER) + count*ROWS*COLUMNS;
+	if(offset < 0)
+		offset = 0;
+	outb(CRT_DATA_REGISTER, offset);
 }
 
 void print(char *str){

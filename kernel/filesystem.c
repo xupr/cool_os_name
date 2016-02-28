@@ -80,7 +80,7 @@ void init_filesystem(void){
 
 FILE open(char *file_name){
 	int inode_index;
-	print("\n");
+//	print("\n");
 	for(inode_index = 0; inode_index<inode_count; ++inode_index){
 		if(!strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
 			file_descriptor *file = (file_descriptor *)malloc(sizeof(file_descriptor));
@@ -94,7 +94,7 @@ FILE open(char *file_name){
 		}
 	}
 	
-	print("1");
+	//print("1");
 	for(inode_index = 0; inode_index<inode_count; ++inode_index){
 		if(!(inode_list+inode_index)->bound){
 			inode *file_node = inode_list+inode_index;
@@ -103,28 +103,31 @@ FILE open(char *file_name){
 			file_node->size = 0;
 			file_node->address_block = get_free_block();
 			int name_address = 0;
-			print("2");
-			while(strcmp(file_names_list+name_address++, "\0\0"));
-			print("3");
-			--name_address;
+			//print("2");
+			//while(strcmp(file_names_list+name_address++, "\0"));
+			while(*(file_names_list + name_address++) || *(file_names_list + name_address));
+			//print("3");
+			if(name_address == 1)
+				--name_address;
 			file_node->name_address = name_address;
 			strcpy(file_names_list+name_address, file_name);
 			ata_write_sectors(FILE_NAMES_LIST, BLOCK_SIZE, file_names_list);
 			file_node->creation_date = 0;
 			file_node->update_date = 0;
 			ata_write_sectors(INODE_LIST, BLOCK_SIZE, (char *)inode_list);
-			print("4");
+			//print("4");
 
 			file_descriptor *file = (file_descriptor *)malloc(sizeof(file_descriptor));
-			print("5");
+			//print("5");
 			file->inode = file_node;
 			file->physical_address_block = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE*sizeof(char));
+			//print(itoa(file->physical_address_block));
 			ata_read_sectors(file_node->address_block, BLOCK_SIZE, (char *)file->physical_address_block);
 			file->file_data_blocks_list = create_list();
 			file->file_offset = 0;
-			print("6");
+			//print("6");
 			add_to_list(open_files_list, file);
-			print("7");
+			//print("7");
 			return (FILE)(open_files_list->length-1);
 		}
 	}
@@ -165,6 +168,8 @@ void write(FILE file_descriptor_index, char *buff, int count){
 		ata_write_sectors(INODE_LIST, BLOCK_SIZE, (char *)inode_list);
 		end_of_file = 1;
 	}
+	
+	print("\n");
 	print(buff);
 	//print(itoa(block_index));
 	print("\n");
@@ -189,7 +194,7 @@ void write(FILE file_descriptor_index, char *buff, int count){
 			if(!*(current_file_descriptor->physical_address_block+block_index)){
 				print("data block not allocated\n");
 				*(current_file_descriptor->physical_address_block+block_index) = get_free_block();
-				print(itoa((current_file_descriptor->inode->address_block)));
+				//print(itoa((current_file_descriptor->inode->address_block)));
 				ata_write_sectors(current_file_descriptor->inode->address_block, BLOCK_SIZE, (char *)current_file_descriptor->physical_address_block);
 			}
 
@@ -249,6 +254,7 @@ void read(FILE file_descriptor_index, char *buff, int count){
 			ata_read_sectors(*(current_file_descriptor->physical_address_block+block_index), BLOCK_SIZE, current_file_data_block->data);			
 			add_to_list(current_file_descriptor->file_data_blocks_list, current_file_data_block);
 		}
+
 		int bytes_to_read = (count - 1)%(BLOCK_SIZE*SECTOR_SIZE) + 1;
 		memcpy(buff+buff_offset, current_file_data_block->data+data_offset, bytes_to_read);
 		count -= bytes_to_read;

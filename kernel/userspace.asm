@@ -1,0 +1,20 @@
+[BITS 32]
+GLOBAL jump_to_ring3
+SECTION .text
+jump_to_ring3:
+	PUSH EBP
+	MOV EBP, ESP
+	MOV AX, 0x23
+	MOV DS, AX
+	MOV ES, AX
+	MOV FS, AX
+	MOV GS, AX
+
+	MOV EAX, 0x9FFFFF
+	PUSH 0x23
+	PUSH EAX
+	PUSHF
+	PUSH 0x1B
+	MOV EAX, [EBP + 8]
+	PUSH EAX
+	IRET

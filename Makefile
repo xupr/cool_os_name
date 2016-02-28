@@ -15,13 +15,16 @@ c/stdio.o:
 c/stdlib.o:
 	i686-elf-gcc -ffreestanding -masm=intel -c -o c/stdlib.o c/stdlib.c
 
+c/cr0.o:
+	i686-elf-gcc -ffreestanding -masm=intel -c -o c/cr0.o c/cr0.c
+
 bootloader/boot.o: 
 	nasm -f bin -o bootloader/boot.o bootloader/boot.asm
 
-kernel/kernel.o: utils/portio.o drivers/screen.o kernel/interrupts.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
+kernel/kernel.o: utils/portio.o drivers/screen.o kernel/interrupts.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o kernel/userspace.o kernel/exception.o kernel/exception_entry.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
 	i686-elf-gcc -ffreestanding -masm=intel -c -o kernel/_kernel.o kernel/kernel.c
 	nasm -f elf kernel/kernel_loader.asm
-	i686-elf-ld -T kernel/kernel.ld -o kernel/kernel.o kernel/kernel_loader.o kernel/_kernel.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o utils/portio.o drivers/screen.o kernel/interrupts.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
+	i686-elf-ld -T kernel/kernel.ld -o kernel/kernel.o kernel/kernel_loader.o kernel/_kernel.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o kernel/userspace.o kernel/exception.o kernel/exception_entry.o utils/portio.o drivers/screen.o kernel/interrupts.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
 
 kernel/filesystem.o:
 	i686-elf-gcc -ffreestanding -masm=intel -c -o kernel/filesystem.o kernel/filesystem.c
@@ -40,6 +43,15 @@ kernel/system_call.o:
 
 kernel/system_call_entry.o:
 	nasm -f elf -o kernel/system_call_entry.o kernel/system_call_entry.asm
+
+kernel/userspace.o:
+	nasm -f elf -o kernel/userspace.o kernel/userspace.asm
+
+kernel/exception.o:
+	i686-elf-gcc -ffreestanding -masm=intel -c -o kernel/exception.o kernel/exception.c
+
+kernel/exception_entry.o:
+	nasm -f elf -o kernel/exception_entry.o kernel/exception_entry.asm
 
 drivers/keyboard_entry.o:
 	nasm -f elf -o drivers/keyboard_entry.o drivers/keyboard_entry.asm
@@ -73,11 +85,12 @@ utils/stdlib.o:
 
 shell:
 	i686-elf-gcc -ffreestanding -masm=intel -c -o shell.o shell.c
+	i686-elf-gcc -ffreestanding -masm=intel -c -o c/cr0.o c/cr0.c
 	i686-elf-gcc -ffreestanding -masm=intel -c -o c/stdlib.o c/stdlib.c
 	i686-elf-gcc -ffreestanding -masm=intel -c -o c/stdio.o c/stdio.c
 	i686-elf-gcc -ffreestanding -masm=intel -c -o c/string.o c/string.c
 	nasm -f elf proc_entry.asm -o proc_entry.o
-	i686-elf-ld proc_entry.o shell.o c/stdio.o c/string.o c/stdlib.o -o shell.bin -T proc.ld
+	i686-elf-ld proc_entry.o c/cr0.o shell.o c/stdio.o c/string.o c/stdlib.o -o shell.bin -T proc.ld
 	dd if=shell.bin of=os_copy.img conv=notrunc bs=1 count=2048 seek=17858560
 	dd if=shell.bin of=os.img conv=notrunc bs=1 count=2048 seek=17858560
 	./add_file.o

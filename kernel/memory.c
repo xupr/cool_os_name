@@ -203,7 +203,7 @@ PAGE_TABLE create_page_table(){
 		//print("\n");
 		page_directory_entry *page_table_address = (page_directory_entry *)((int)current_page_table_descriptor->page_table & (int)(~0xFFF));
 		if(page_table_address < current_page_table_descriptor->page_table)
-			page_table_address += PAGE_SIZE;
+			page_table_address = (page_directory_entry *)((char *)page_table_address + PAGE_SIZE);
 		current_page_table_descriptor->page_table = page_table_address;
 		//print(itoa((int)(current_page_table_descriptor->page_table)));
 		//print("\n");
@@ -246,12 +246,12 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 	for(i = 0; i++ < page_directories; ++current_page_directory){
 		page_table_entry *current_page_table;
 		if(current_page_directory->ignored){
-//			print("nope1\n");
+			print("nope1\n");
 			current_page_table = (page_table_entry *)malloc(2048*sizeof(page_table_entry));
 			if((int)current_page_table & (int)(~0xFFF) > (int)current_page_table)
 				current_page_table = (page_table_entry *)((int)current_page_table & (int)(~0xFFF));
 			else
-				current_page_table = (page_table_entry *)((int)current_page_table & (int)(~0xFFF)) + 0x1000;
+				current_page_table = (page_table_entry *)(((int)current_page_table & (int)(~0xFFF)) + PAGE_SIZE);
 			
 //			print(itoa((int)current_page_table));
 //			print("\n");
@@ -395,7 +395,7 @@ void identity_page(PAGE_TABLE page_table_index, void *base, int limit){
 			if((int)current_page_table & (int)(~0xFFF) > (int)current_page_table)
 				current_page_table = (page_table_entry *)((int)current_page_table & (int)(~0xFFF));
 			else
-				current_page_table = (page_table_entry *)((int)current_page_table & (int)(~0xFFF)) + 0x1000;
+				current_page_table = (page_table_entry *)(((int)current_page_table & (int)(~0xFFF)) + PAGE_SIZE);
 			
 			current_page_directory->page_table = ((int)current_page_table)>>12;
 			current_page_directory->available = 0;
