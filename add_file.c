@@ -26,7 +26,7 @@ int main(void){
 	fseek(fd, INODE_OFFSET, SEEK_SET);
 	inode *ind = (inode *)malloc(sizeof(inode));
 	fgets((char *)ind, sizeof(inode), fd);
-	printf("%d\n", ind->size);
+	printf("%d\n", ind->name_address);
 	ind->size = buff->st_size + 1;
 	fseek(fd, INODE_OFFSET, SEEK_SET);
 	fwrite(ind, sizeof(inode), 1, fd);

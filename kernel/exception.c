@@ -10,6 +10,7 @@ void init_exception(void){
 	//print("hello world! time to get an exception");i
 //	print(itoa(exception_interrupt_entry));
 	create_IDT_descriptor(0xE, (int)&exception_interrupt_entry, 0x8, 0x8F);
+	print("--page faults initialized\n");
 }
 
 void exception_handler(int fault_info){

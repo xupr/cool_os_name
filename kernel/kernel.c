@@ -14,8 +14,8 @@
 void init(char *memory_map_length, void *memory_map);
 
 void k_main(char *memory_map_length, void *memory_map){
-	print(itoa((int)memory_map));
-	print("safta\n");
+//	print(itoa((int)memory_map));
+//	print("safta\n");
 	init(memory_map_length, memory_map);
 //	print(itoa(*memory_map_length));
 //	print("\n");
@@ -25,16 +25,26 @@ void k_main(char *memory_map_length, void *memory_map){
 }
 
 void init(char *memory_map_length, void *memory_map){
-	init_heap();
-	init_interrupts();
 	init_screen();
+	print("screen initialized\n");
+	init_heap();
+	print("kernel heap initialized\n");
+	init_interrupts();
+	print("interrupts initialized\n");
 	init_exception();
+	print("exceptions initialized\n");
 	init_system_call();
+	print("system calls initialized\n");
 	init_memory(memory_map_length, memory_map);
+	print("memory managment initialized\n");
 	init_keyboard();
+	print("keyboard initialized\n");
 	init_ata();
+	print("ata initialized\n");
 	init_filesystem();
+	print("file system initialized\n");
 	init_process();
+	print("process initialized\n");
 	asm("sti");	
 	//PAGE_TABLE safta_table = create_page_table();
 //	allocate_memory(safta_table, (void *)0xFFF, 32);

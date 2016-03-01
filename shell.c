@@ -8,15 +8,15 @@ int main(void){
 	
 //	print(itoa((int)malloc(10)));
 //	print(itoa((int)malloc(10)));
-	char *commands[] = {"write asd.txt hello\n", "read asd.txt\n", "write safta.txt world\n", "read safta.txt\n"};
-	int i;
-	char *out = (char *)malloc(1024*sizeof(char));
-	for(i = 0; i < 0; ++i){	
+//	char *commands[] = {"write asd.txt hello\n", "read asd.txt\n", "write safta.txt world\n", "read safta.txt\n"};
+//	int i;
+	char *out = (char *)malloc(1024*sizeof(char)), *str;
+/*	for(i = 0; i < 0; ++i){	
 		print(">>> ");
 		//char str[32];
 		//char out[32];
 		//input(str, 32);
-		char *str = commands[i];
+		str = commands[i];
 		print(str);
 		char *command = strtok(str, " \n");
 		if(!strcmp(command, write_file_commad)){
@@ -35,13 +35,13 @@ int main(void){
 			print("\n");
 		}	
 	}
-
+*/
 	str = (char *)malloc(1024*sizeof(char));
 	while(1){
 		print(">>> ");
 		memset(str, 0, 1024);
 		//char out[32];
-		input(str, 32);
+		input(str, 1024);
 		
 		char *command = strtok(str, " \n");
 		if(!strcmp(command, write_file_commad)){
@@ -55,8 +55,9 @@ int main(void){
 		}else if(!strcmp(command, read_file_command)){
 			char *file_name = strtok(0, " \n");
 			FILE fd = open(file_name);
-			read(fd, out, 32);
+			read(fd, out, 1024);
 			print(out);
+			print("\n");
 		}	
 		//	print("i'm so fking happy right now!");
 	}

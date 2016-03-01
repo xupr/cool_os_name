@@ -63,8 +63,6 @@ static int compare_memory_blocks(void *a, void *b){
 }
 
 void init_memory(char *memory_map_length, void *memory_map){
-	print(itoa((int)memory_map));
-	print("safta\n");
 	memory_page_map = create_list();
 	int i, j;
 /*	for(i = 0; i < *memory_map_length; ++i){ //won't work because the list is unsorted, could sort first.
@@ -124,6 +122,7 @@ void init_memory(char *memory_map_length, void *memory_map){
 		print("\n");
 */	}
 	
+	print("--memory map inititalized\n");
 
 	//print(itoa((int)kernel_page_table));
 	//print("\n");
@@ -176,6 +175,7 @@ void init_memory(char *memory_map_length, void *memory_map){
 //	asm("int 3");
 	switch_memory_map(kernel_page_table_index);
 	asm("mov eax, cr0; or eax, 0x80000000; mov cr0, eax");
+	print("--paging initiailzed\n");
 	//create_page_table();
 }
 
@@ -221,7 +221,7 @@ PAGE_TABLE create_page_table(){
 	print(itoa((int)current_page_table_descriptor->page_table));
 	print("\n");*/
 	for(i = 0; i < 1024; current_page_table_descriptor->page_table[i++] = current_page_directory);
-	print("\n");
+//	print("\n");
 //	print(itoa((int)current_page_directory.ignored));
 //	print(itoa((int)(current_page_table_descriptor->page_table + 1)));
 //	print("kappa\n");
@@ -246,7 +246,7 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 	for(i = 0; i++ < page_directories; ++current_page_directory){
 		page_table_entry *current_page_table;
 		if(current_page_directory->ignored){
-			print("nope1\n");
+			//print("nope1\n");
 			current_page_table = (page_table_entry *)malloc(2048*sizeof(page_table_entry));
 			if((int)current_page_table & (int)(~0xFFF) > (int)current_page_table)
 				current_page_table = (page_table_entry *)((int)current_page_table & (int)(~0xFFF));
@@ -297,7 +297,7 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 					void *page_address;
 					if(index != memory_page_map->length - 1 &&\
 					((memory_page_block *)(current_memory_page_block->next->value))->process == get_current_process()){
-						print("safta1\n");
+						//print("safta1\n");
 						((memory_page_block *)current_memory_page_block->next->value)->base -= PAGE_SIZE;
 						page_address = ((memory_page_block *)current_memory_page_block->next->value)->base;
 						((memory_page_block *)current_memory_page_block->next->value)->limit += PAGE_SIZE;
@@ -305,7 +305,7 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 					}else if(index != 0 &&\
 					((memory_page_block *)get_list_element(memory_page_map, index - 1))->process == get_current_process()){
 					//	memory_page_block *temp_page_block = (memory_page_block *)get_list_element(index - 1);
-						print("safta2\n");
+						//print("safta2\n");
 						((memory_page_block *)get_list_element(memory_page_map, index - 1))->limit += PAGE_SIZE;
 						page_address = ((memory_page_block *)current_memory_page_block->value)->base; 
 						((memory_page_block *)current_memory_page_block->value)->base += PAGE_SIZE;
@@ -330,8 +330,8 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 						free(current_memory_page_block);
 					}
 					
-					print(itoa((int)page_address));
-					print("o\n");
+					//print(itoa((int)page_address));
+					//print("o\n");
 
 					current_page_table->physical_page = (int)page_address>>12;
 					current_page_table->available = 0;
@@ -362,8 +362,8 @@ void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base,
 	int i;
 	int current_pages = 1024 - (((int)base>>12) & 0x3FF);
 	for(i = 0; i++ < page_directories; ++current_page_directory){
-		if(current_page_directory->ignored)
-			print("wtf123\n");
+		//if(current_page_directory->ignored)
+			//print("wtf123\n");
 		page_table_entry *current_page_table;
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12)) + (((int)base>>12) & 0x3FF);
 		int j;

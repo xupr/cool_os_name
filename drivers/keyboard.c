@@ -99,10 +99,12 @@ void print_char(scan_code_set3 scan_code, key_state state){
 			else if(c > 0x5A && c < 0x5E)
 				c = SHIFT_ASCII[c-0x44];
 			s[0] = c;
+			set_vga_colors(WHITE, BLACK);
 			print(s);
 			break;
 		case 0:;
 			s[0] = scancode_set3[scan_code];
+			set_vga_colors(WHITE, BLACK);
 			print(s);
 			break;
 	}
@@ -137,6 +139,15 @@ void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){
 				scroll_pages(1);
 				break;
 		}
+	}
+}
+
+void keyboard_backspace_command(scan_code_set3 scan_code, key_state state){
+	if(state != KEY_DOWN)
+		return;
+	if(need_to_buffer && keyboard_buffer_index != 0){
+		print("\b");
+		keyboard_buffer[--keyboard_buffer_index] = '\0';
 	}
 }
 
@@ -301,6 +312,7 @@ void init_keyboard_behavior(void){
 	add_keyboard_event(SCS3_DOWN, keyboard_scroll_command);
 	add_keyboard_event(SCS3_PAGEUP, keyboard_scroll_command);
 	add_keyboard_event(SCS3_PAGEDOWN, keyboard_scroll_command);
+	add_keyboard_event(SCS3_BACKSPACE, keyboard_backspace_command);
 	return;
 }
 

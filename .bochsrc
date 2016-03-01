@@ -4,3 +4,5 @@ ata0-master: type=disk, path="os.img", mode=flat, translation=lba
 megs: 32
 mouse: enabled=0
 boot: disk
+keyboard: paste_delay=100000
+vga: update_freq=60

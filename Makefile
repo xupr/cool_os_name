@@ -91,8 +91,8 @@ shell:
 	i686-elf-gcc -ffreestanding -masm=intel -c -o c/string.o c/string.c
 	nasm -f elf proc_entry.asm -o proc_entry.o
 	i686-elf-ld proc_entry.o c/cr0.o shell.o c/stdio.o c/string.o c/stdlib.o -o shell.bin -T proc.ld
-	dd if=shell.bin of=os_copy.img conv=notrunc bs=1 count=2048 seek=17858560
-	dd if=shell.bin of=os.img conv=notrunc bs=1 count=2048 seek=17858560
+	dd if=shell.bin of=os_copy.img conv=notrunc bs=1 count=4096 seek=17858560
+	dd if=shell.bin of=os.img conv=notrunc bs=1 count=4096 seek=17858560
 	./add_file.o
 
 clean:

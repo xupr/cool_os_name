@@ -55,11 +55,13 @@ void init_pic(void){
 
 void init_interrupts(void){
 	init_pic();
+	print("--PIC initialized\n");
 	//IDTR.base = IDT_descriptors;
 	//IDTR.limit = IDT_DESCRIPTORS_LENGTH*sizeof(IDT_descriptor) - 1;
 	//create_IDT_descriptor(0, 0, 0, 0);
 	asm("SIDT [eax]" : "=a" (IDTR));
 	IDT_descriptors = IDTR->base;
+	print("--IDT initialized\n");
 	//create_IDT_descriptor(0x21, (int) &keyboard_interrupt, 0x8, 0x8F);
 	//asm("LIDT [%0]" :: "r" (&IDTR));
 	

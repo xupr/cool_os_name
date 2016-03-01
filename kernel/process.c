@@ -31,31 +31,33 @@ extern void jump_to_ring3(int offset);
 void init_process(void){
 	char gdt[6];
 	asm("sgdt %0" : "=m"(gdt));
-	print("\n");
 	char *c = *((char **)(gdt + 2)) + 5*8;
-	print(itoa((int)c));
-	print("asd\n");
 	*(short *)(c+2) = (short)((int)tss & 0xFFFF);
 	*(c+4) = (char)(((int)tss>>16) & 0xFF);
 	*(c+7) = (char)(((int)tss>>24) & 0xFF);
-	print(itoa((int)tss));
+	//print(itoa((int)tss));
 	*(int *)(tss + 4) = 0x4fffff;
 	*(short *)(tss + 8) = 0x10;
 	*(short *)(tss + 102) = 104;
 	asm("mov ax, 0x2B; ltr ax");
-
+	print("--tss initialized\n");
+	
 	process_list = create_list();
 	process_descriptor *kernel_process = (process_descriptor *)malloc(sizeof(process_descriptor));
 	add_to_list(process_list, kernel_process);
 }
 
 void handle_page_fault(void *address, int fault_info){
+	set_vga_colors(WHITE, RED);
+	print("page fault: ");
 	if(!(*(page_fault_error_code *)&fault_info).present){
-		print("page not present");
+		set_vga_colors(WHITE, RED);
+		print("page not present\n");
 		process_descriptor *current_process_descriptor = (process_descriptor *)get_list_element(process_list, current_process);
 		allocate_memory(current_process_descriptor->page_table, address, 1);
 	}else{
-		print("no premissions to enter page");
+		set_vga_colors(WHITE, RED);
+		print("no premissions to enter page\n");
 stop:
 		asm("hlt");
 		goto stop;
@@ -67,7 +69,7 @@ void *get_heap_start(PID process_index){
 }
 
 void create_process(char *code, int length){
-	print(itoa(length));
+//	print(itoa(length));
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor));
 	process->page_table = create_page_table();
 	process->heap_start = (void *)(PROCESS_CODE_BASE + length);
