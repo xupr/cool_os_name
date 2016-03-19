@@ -48,7 +48,7 @@ void init_pic(void){
 	outb(MASTER_PIC_DATA, ICW4_8086);
 	outb(SLAVE_PIC_DATA, ICW4_8086);
 
-	outb(MASTER_PIC_DATA, 0xfd);
+	outb(MASTER_PIC_DATA, 0xfc);
 	outb(SLAVE_PIC_DATA, slave_mask);
 	return;
 }

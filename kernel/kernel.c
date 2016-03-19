@@ -45,10 +45,15 @@ void init(char *memory_map_length, void *memory_map){
 	print("file system initialized\n");
 	init_process();
 	print("process initialized\n");
-	asm("sti");	
-	//PAGE_TABLE safta_table = create_page_table();
+//	FILE shell = open("shell.o");
+//	write(shell, "123", 4);
+//	char buff[32];
+//	read(shell, buff, 32);
+//	print(buff);
+//PAGE_TABLE safta_table = create_page_table();
 //	allocate_memory(safta_table, (void *)0xFFF, 32);
-	execute("safta.o");
+	execute("shell.o");
+	asm("sti");	
 //	open("safta.txt");
 //	open("saba.txt");
 /*	FILE safta = open("safta.txt");	

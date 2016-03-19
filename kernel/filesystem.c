@@ -96,9 +96,9 @@ FILE open(char *file_name){
 	}
 
 	for(inode_index = 0; inode_index<inode_count; ++inode_index){
-		if(!strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
-//			print(file_name);
-//			print("\n");
+		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
+			//print(itoa((inode_list+inode_index)->name_address));
+			//print("\n");
 			//print(((inode_list+inode_index)->name_address+file_names_list));
 			file_descriptor *file = (file_descriptor *)malloc(sizeof(file_descriptor));
 			file->inode = (inode *)(inode_list+inode_index);
@@ -124,6 +124,7 @@ FILE open(char *file_name){
 			//print("2");
 			//while(strcmp(file_names_list+name_address++, "\0"));
 			while(*(file_names_list + name_address++) || *(file_names_list + name_address));
+			//print(itoa(name_address));
 			//print("3");
 			if(name_address == 1)
 				--name_address;
@@ -173,7 +174,7 @@ int get_free_block(void){
 	return -1;
 }
 
-void write(FILE file_descriptor_index, char *buff, int count){
+int write(FILE file_descriptor_index, char *buff, int count){
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	print("writing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
@@ -227,7 +228,7 @@ void write(FILE file_descriptor_index, char *buff, int count){
 		}
 
 		int bytes_to_write = (count - 1)%(BLOCK_SIZE*SECTOR_SIZE) + 1;
-		print(itoa(current_file_data_block->data+data_offset));
+		//print(itoa(current_file_data_block->data+data_offset));
 		memcpy(current_file_data_block->data+data_offset, buff+buff_offset, bytes_to_write);
 		if(end_of_file && bytes_to_write == count)
 			*(current_file_data_block->data+data_offset+count-1) = -1;
@@ -238,9 +239,10 @@ void write(FILE file_descriptor_index, char *buff, int count){
 	}
 
 	current_file_descriptor->file_offset += temp_count;
+	return temp_count;
 }
 
-void read(FILE file_descriptor_index, char *buff, int count){	
+int read(FILE file_descriptor_index, char *buff, int count){	
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	print("reading ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
@@ -285,7 +287,7 @@ void read(FILE file_descriptor_index, char *buff, int count){
 		}
 
 		int bytes_to_read = (count - 1)%(BLOCK_SIZE*SECTOR_SIZE) + 1;
-		print(itoa(current_file_data_block->data+data_offset));
+		//print(itoa(current_file_data_block->data+data_offset));
 		memcpy(buff+buff_offset, current_file_data_block->data+data_offset, bytes_to_read);
 		count -= bytes_to_read;
 		data_offset = 0;
@@ -293,6 +295,7 @@ void read(FILE file_descriptor_index, char *buff, int count){
 	}
 
 	current_file_descriptor->file_offset += temp_count;
+	return temp_count;
 }
 
 void seek(FILE file_descriptor_index, int new_file_offset){

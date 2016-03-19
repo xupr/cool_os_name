@@ -36,23 +36,23 @@ void *system_call_interrupt(void){
 			return (void *)&heap;
 			break;
 		
-		case OPEN:
+		case FOPEN:
 			asm("" : "=d"(str));
-			fd = open(str);
+			fd = fopen(str);
 			return &fd;
 		//	asm("pop eax;popa");
 		//	asm("" : : "a"(fd));
 		//	asm("iret");
 			break;
 
-		case WRITE:
+		case FWRITE:
 			asm("" : "=c"(length), "=d"(str), "=b"(fd));
-			write(fd, str, length);
+			fwrite(str, length, fd);
 			break;
 
-		case READ:
+		case FREAD:
 			asm("" : "=c"(length), "=d"(str), "=b"(fd));
-			read(fd, str, length);
+			fread(str, length, fd);
 			break;
 
 	}

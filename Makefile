@@ -21,10 +21,10 @@ c/cr0.o:
 bootloader/boot.o: 
 	nasm -f bin -o bootloader/boot.o bootloader/boot.asm
 
-kernel/kernel.o: utils/portio.o drivers/screen.o kernel/interrupts.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o kernel/userspace.o kernel/exception.o kernel/exception_entry.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
+kernel/kernel.o: utils/portio.o drivers/screen.o kernel/interrupts.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o kernel/userspace.o kernel/exception.o kernel/exception_entry.o kernel/pit_entry.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
 	i686-elf-gcc -ffreestanding -masm=intel -c -o kernel/_kernel.o kernel/kernel.c
 	nasm -f elf kernel/kernel_loader.asm
-	i686-elf-ld -T kernel/kernel.ld -o kernel/kernel.o kernel/kernel_loader.o kernel/_kernel.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o kernel/userspace.o kernel/exception.o kernel/exception_entry.o utils/portio.o drivers/screen.o kernel/interrupts.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
+	i686-elf-ld -T kernel/kernel.ld -o kernel/kernel.o kernel/kernel_loader.o kernel/_kernel.o kernel/filesystem.o kernel/memory.o kernel/process.o kernel/system_call.o kernel/system_call_entry.o kernel/userspace.o kernel/exception.o kernel/exception_entry.o kernel/pit_entry.o utils/portio.o drivers/screen.o kernel/interrupts.o drivers/keyboard_entry.o drivers/keyboard.o drivers/ata.o drivers/ata_entry.o utils/heap.o utils/list.o utils/string.o utils/stdlib.o
 
 kernel/filesystem.o:
 	i686-elf-gcc -ffreestanding -masm=intel -c -o kernel/filesystem.o kernel/filesystem.c
@@ -52,6 +52,9 @@ kernel/exception.o:
 
 kernel/exception_entry.o:
 	nasm -f elf -o kernel/exception_entry.o kernel/exception_entry.asm
+
+kernel/pit_entry.o:
+	nasm -f elf -o kernel/pit_entry.o kernel/pit_entry.asm
 
 drivers/keyboard_entry.o:
 	nasm -f elf -o drivers/keyboard_entry.o drivers/keyboard_entry.asm

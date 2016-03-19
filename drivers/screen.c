@@ -29,6 +29,7 @@ void set_cursor(short address);
 
 static VGA_COLOR foreground = WHITE;
 static VGA_COLOR background = GREEN;
+static list *screen_list;
 
 void init_screen(void){
 	clear_screen();

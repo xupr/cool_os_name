@@ -51,11 +51,11 @@ int main(void){
 			//print(file_name);
 			FILE fd = open(file_name);
 //			print(itoa(fd));
-			write(fd, data, strlen(data) + 1);
+			fwrite(data, strlen(data) + 1, fd);
 		}else if(!strcmp(command, read_file_command)){
 			char *file_name = strtok(0, " \n");
 			FILE fd = open(file_name);
-			read(fd, out, 1024);
+			read(out, 1024, fd);
 			print(out);
 			print("\n");
 		}	
