@@ -123,6 +123,28 @@ void keyboard_command_char(scan_code_set3 scan_code, key_state state){
 	return;
 }
 
+void switch_screens_command(scan_code_set3 scan_code, key_state state){
+	if(state == KEY_DOWN)
+		return;
+	
+	if((COMMAND_KEYS[0] == SCS3_LCTRL && COMMAND_KEYS[1] == SCS3_LALT) || (COMMAND_KEYS[1] == SCS3_LCTRL && COMMAND_KEYS[0] == SCS3_LALT)){
+		switch(scan_code){
+			case SCS3_1:
+				switch_screen(0);
+				break;
+			case SCS3_2:
+				switch_screen(1);
+				break;
+			case SCS3_3:
+				switch_screen(2);
+				break;
+			case SCS3_4:
+				switch_screen(3);
+				break;
+		}
+	}
+}
+
 void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){
 	if(state == KEY_DOWN){
 		switch(scan_code){
@@ -308,11 +330,19 @@ void init_keyboard_behavior(void){
 
 	add_keyboard_event(SCS3_LSHIFT, keyboard_command_char);
 	add_keyboard_event(SCS3_RSHIFT, keyboard_command_char);
+	add_keyboard_event(SCS3_LCTRL, keyboard_command_char);
+	add_keyboard_event(SCS3_LALT, keyboard_command_char);	
+	
 	add_keyboard_event(SCS3_UP, keyboard_scroll_command);
 	add_keyboard_event(SCS3_DOWN, keyboard_scroll_command);
 	add_keyboard_event(SCS3_PAGEUP, keyboard_scroll_command);
 	add_keyboard_event(SCS3_PAGEDOWN, keyboard_scroll_command);
 	add_keyboard_event(SCS3_BACKSPACE, keyboard_backspace_command);
+	
+	add_keyboard_event(SCS3_1, switch_screens_command);
+	add_keyboard_event(SCS3_2, switch_screens_command);
+	add_keyboard_event(SCS3_3, switch_screens_command);
+	add_keyboard_event(SCS3_4, switch_screens_command);
 	return;
 }
 

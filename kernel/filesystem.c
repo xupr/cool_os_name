@@ -302,7 +302,7 @@ void seek(FILE file_descriptor_index, int new_file_offset){
 	((file_descriptor *)get_list_element(open_files_list, file_descriptor_index))->file_offset = new_file_offset;
 }
 
-void execute(char *file_name){
+void execute(char *file_name, int screen_index){
 	print("executing ");
 	print(file_name);
 	print("\n");
@@ -311,6 +311,6 @@ void execute(char *file_name){
 	//print(itoa(current_file_descriptor->inode->size));
 	char *buff = (char *)malloc(current_file_descriptor->inode->size);
 	read(file_descriptor_index, buff, current_file_descriptor->inode->size);
-	create_process(buff, current_file_descriptor->inode->size);
+	create_process(buff, current_file_descriptor->inode->size, screen_index);
 //	asm("call eax" : : "a"(buff));
 }

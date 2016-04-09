@@ -23,7 +23,8 @@ void *system_call_interrupt(void){
 		case PRINT:
 			asm("" : "=d"(str));
 			set_vga_colors(WHITE, BLACK);
-			print(str);
+			print_to_other_screen(str, get_process_screen_index(get_current_process()));
+		//	print(str);
 			break;
 
 		case INPUT:

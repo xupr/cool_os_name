@@ -25,10 +25,10 @@ void k_main(char *memory_map_length, void *memory_map){
 }
 
 void init(char *memory_map_length, void *memory_map){
+	init_heap();
+	//print("kernel heap initialized\n");
 	init_screen();
 	print("screen initialized\n");
-	init_heap();
-	print("kernel heap initialized\n");
 	init_interrupts();
 	print("interrupts initialized\n");
 	init_exception();
@@ -45,6 +45,7 @@ void init(char *memory_map_length, void *memory_map){
 	print("file system initialized\n");
 	init_process();
 	print("process initialized\n");
+	print_to_other_screen("kappa123", 1);
 //	FILE shell = open("shell.o");
 //	write(shell, "123", 4);
 //	char buff[32];
@@ -52,8 +53,8 @@ void init(char *memory_map_length, void *memory_map){
 //	print(buff);
 //PAGE_TABLE safta_table = create_page_table();
 //	allocate_memory(safta_table, (void *)0xFFF, 32);
-	execute("shell.o");
-	asm("sti");	
+	execute("shell.o", 1);
+//	asm("sti");	
 //	open("safta.txt");
 //	open("saba.txt");
 /*	FILE safta = open("safta.txt");	

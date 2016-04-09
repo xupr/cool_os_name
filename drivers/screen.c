@@ -1,5 +1,8 @@
 #include "../headers/portio.h"
 #include "../headers/screen.h"
+#include "../headers/string.h"
+#include "../headers/list.h"
+#include "../headers/heap.h"
 
 #define MISC_OUTPUT_REGISTER_READ 0x3CC
 #define MISC_OUTPUT_REGISTER_WRITE 0x3C2
@@ -23,13 +26,21 @@
 #define ROWS 25
 #define COLUMNS 80
 
+#define SCREEN_SIZE 131072
+
 void init_cursor(void);
 short get_cursor(void);
 void set_cursor(short address);
 
+typedef struct{
+	char *screen;
+	int cursor_offset;
+} screen_descriptor;
+
 static VGA_COLOR foreground = WHITE;
 static VGA_COLOR background = GREEN;
 static list *screen_list;
+static int current_screen_index = 0;
 
 void init_screen(void){
 	clear_screen();
@@ -63,7 +74,26 @@ void init_screen(void){
 
 	init_cursor();
 	//set_cursor(5);
+	screen_list = create_list();
+	int i;
+	for(i = 0; i < 4; ++i){
+		screen_descriptor *sd = (screen_descriptor *)malloc(sizeof(screen_descriptor));
+		sd->screen = (char *)malloc(SCREEN_SIZE);
+		sd->cursor_offset = 0;
+		memset(sd->screen, 0, SCREEN_SIZE);
+		add_to_list(screen_list, sd);
+	}
 	return;
+}
+
+void switch_screen(int new_screen_index){
+	screen_descriptor *current_sd = (screen_descriptor *)get_list_element(screen_list, current_screen_index);
+	memcpy(current_sd->screen, (char *)SCREEN, SCREEN_SIZE);
+	current_sd->cursor_offset = get_cursor();
+	screen_descriptor *new_sd = (screen_descriptor *)get_list_element(screen_list, new_screen_index);
+	memcpy((char *)SCREEN, new_sd->screen, SCREEN_SIZE);
+	current_screen_index = new_screen_index;
+	set_cursor(new_sd->cursor_offset);
 }
 
 void set_vga_colors(VGA_COLOR new_foreground, VGA_COLOR new_background){
@@ -136,6 +166,45 @@ void print(char *str){
 		scroll_lines((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
 	else if(offset > ((int)screen - (int)SCREEN)/2)
 		scroll_lines((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);
+}
+
+void print_to_other_screen(char *str, int screen_index){
+	if(current_screen_index == screen_index){
+		print(str);
+		return;
+	}
+	screen_descriptor *sd = get_list_element(screen_list, screen_index);
+	unsigned char *screen = (unsigned char *)sd->screen + 2*sd->cursor_offset;
+	char color = foreground + (background<<4);
+	while(*str != '\0'){
+		if(*str == '\n'){
+			screen += 2*(COLUMNS-(((int)screen - (int)SCREEN)/2)%COLUMNS);
+			++str;
+		}else if(*str == '\b'){
+			*--screen = '\0';
+			*--screen = '\0';
+			++str;
+		}else{
+			*screen++ = *str++;
+			*screen++ = color;
+		}
+	}
+
+	*screen++ = 0;
+	*screen = 0x0f;
+	
+	//if(foreground != WHITE)
+	foreground = WHITE;
+	//if(background != BRIGHT_RED)
+	background = GREEN;
+	
+	sd->cursor_offset = ((int)screen - (int)sd->screen)/2;
+	//set_cursor(((int)screen - (int)SCREEN)/2);
+	/*unsigned short offset = get_start_address();
+	if(offset + ROWS*COLUMNS < ((int)screen - (int)SCREEN)/2)
+		scroll_lines((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
+	else if(offset > ((int)screen - (int)SCREEN)/2)
+		scroll_lines((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);*/
 }
 
 void clear_screen(void){

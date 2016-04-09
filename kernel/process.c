@@ -23,10 +23,24 @@ typedef enum{
 } PROCESS_STATE;
 
 typedef struct{
+	int eax;
+	int ecx;
+	int edx;
+	int ebx;
+	int esp;
+	int ebp;
+	int esi;
+	int edi;
+} registers;
+
+typedef struct{
 	PAGE_TABLE page_table;
 	void *heap_start;
 	list *open_files;
 	PROCESS_STATE state;
+	int quantum;
+	int screen_index;
+	registers *regs;
 } process_descriptor;
 
 typedef struct{
@@ -45,7 +59,7 @@ typedef struct{
 void *pit_interrupt_entry;
 static list *process_list;
 static char tss[104];
-static int current_process = 1;
+static int current_process = 0;
 //void (*jump_to_ring3)(int offset);
 extern void jump_to_ring3(int offset);
 
@@ -69,24 +83,48 @@ void init_process(void){
 	create_IDT_descriptor(0x20, (int)&pit_interrupt_entry, 0x8, 0x8F);
 
 	process_list = create_list();
-	process_descriptor *kernel_process = (process_descriptor *)malloc(sizeof(process_descriptor));
+/*	process_descriptor *kernel_process = (process_descriptor *)malloc(sizeof(process_descriptor));
 	kernel_process->page_table = 0;
 	kernel_process->state = RUNNING;
 	kernel_process->open_files = 0;
 	add_to_list(process_list, kernel_process);
-}
+*/}
 
-int pit_interrupt_handler(){
+int pit_interrupt_handler(registers *regs_end){
 //	print("kappa123");
+	registers *regs = regs_end-1;
 	list_node *process_node = process_list->first;
-	while(process_node){
-		process_descriptor *process = (process_descriptor *)process_node->value;
+	process_descriptor *process = (process_descriptor *)process_node->value;
+	if(process_list->length == 1){
 		if(process->state == CREATED){
+			print("running created process\n");
 			process->state = RUNNING;
+			process->quantum = 5;
 			switch_memory_map(process->page_table);
 			send_EOI(0);
 			return PROCESS_CODE_BASE;
 		}
+		
+		if(process->quantum > 1)
+			--process->quantum;
+
+		send_EOI(0);
+		return 0;
+	}
+
+	while(process_node){
+		process = (process_descriptor *)process_node->value;
+		if(process->state == RUNNING){
+		/*	print("running process quantum: ");
+			print(itoa(process->quantum));
+			print("\n");*/
+			if(!(--process->quantum)){
+				process->quantum = 5;
+				//print("process quantum ended");
+			}
+			break;
+		}
+		
 		process_node = process_node->next;
 	}
 
@@ -144,13 +182,14 @@ void *get_heap_start(PID process_index){
 	return ((process_descriptor *)get_list_element(process_list, process_index))->heap_start;
 }
 
-void create_process(char *code, int length){
+void create_process(char *code, int length, int screen_index){
 //	print(itoa(length));
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor));
 	process->page_table = create_page_table();
 	process->heap_start = (void *)(PROCESS_CODE_BASE + length);
 	process->open_files = create_list();
 	process->state = CREATED;
+	process->screen_index = screen_index;
 	add_to_list(process_list, process);
 	identity_page(process->page_table, (void *)KERNEL_BASE, KERNEL_LIMIT);
 //	identity_page(process->page_table, (void *)SCREEN, SCREEN_END - SCREEN - 1);
@@ -166,5 +205,9 @@ void create_process(char *code, int length){
 }
 
 PID get_current_process(void){
-	return (PID)1;
+	return (PID)0;
+}
+
+int get_process_screen_index(PID process_index){
+	return ((process_descriptor *)get_list_element(process_list, process_index))->screen_index;
 }
