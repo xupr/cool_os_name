@@ -13,7 +13,7 @@ typedef struct _heap_memory_structure {
 
 void init_heap(void){
 	asm("int 0x40" : "=a"(heap): "a"(HEAP_START));
-//	print(itoa((int)heap));
+	//print(itoa((int)heap));
 	heap_memory_structure *s = (heap_memory_structure *)heap;
 	s->free = 1;
 	s->size = -1;
@@ -30,7 +30,7 @@ void free(void *  heap_address){
 }
 
 void *malloc(int size){
-//	print(itoa((int)heap));
+	//print(itoa((int)heap));
 	heap_memory_structure *s = (heap_memory_structure *)heap;
 	while((s != 0) && (s->free != 1 || s->size < size)) s = s->next;
 	if(s != 0){
@@ -42,8 +42,9 @@ void *malloc(int size){
 			s->next->size = -1;
 			s->next->next = 0;
 		}
+		
 		s->free = 0;
-	}	
-	return (void *)s + sizeof(heap_memory_structure);
+	}
 
+	return (void *)s + sizeof(heap_memory_structure);
 }

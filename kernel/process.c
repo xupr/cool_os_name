@@ -63,6 +63,7 @@ static char tss[104];
 static int current_process = 0;
 //void (*jump_to_ring3)(int offset);
 extern void jump_to_ring3(int offset);
+static int screen_index_for_shell = 0;
 
 void init_process(void){
 	char gdt[6];
@@ -92,11 +93,17 @@ void init_process(void){
 */}
 
 int pit_interrupt_handler(registers *regs){
-//	print("kappa123");
+	//print("kappa123");
 	//registers *regs = regs_end+1;
 	list_node *process_node = process_list->first;
 	process_descriptor *process = (process_descriptor *)process_node->value;
-	if(process_list->length == 1){
+	if(process_list->length == 0){
+		asm("cli");
+		execute("shell.o", 0);
+		asm("sti");
+		send_EOI(0);
+		return 0;			
+	}else if(process_list->length == 1){
 		if(process->state == CREATED){
 			print("running created process\n");
 			process->state = RUNNING;
@@ -110,6 +117,8 @@ int pit_interrupt_handler(registers *regs){
 		if(process->quantum > 1)
 			--process->quantum;
 
+		//execute("shell.o", screen_index_for_shell++);
+		
 		send_EOI(0);
 		return 0;
 	}

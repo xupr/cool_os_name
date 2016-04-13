@@ -14,9 +14,11 @@ void init_exception(void){
 }
 
 void exception_handler(int fault_info){
+	asm("pusha");
 	void *address;
 //	asm("pop eax" : "=a"(fault_info));
 	asm("mov eax, cr2" : "=a"(address));
 	handle_page_fault(address, fault_info);
 //	print(itoa(address));
+	asm("popa");
 }

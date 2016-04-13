@@ -53,7 +53,7 @@ void init(char *memory_map_length, void *memory_map){
 //	print(buff);
 //PAGE_TABLE safta_table = create_page_table();
 //	allocate_memory(safta_table, (void *)0xFFF, 32);
-	execute("shell.o", 1);
+//	execute("shell.o", 1);
 //	asm("sti");	
 //	open("safta.txt");
 //	open("saba.txt");
@@ -68,7 +68,7 @@ void init(char *memory_map_length, void *memory_map){
 	read(safta, buff, 22);
 	print(buff);*/
 //	FILE safta = open("safta.o");
-//	execute("safta.o");
+	//execute("shell.o", 0);
 //	write(safta, "kappa123", 8);
 
 //	print("231\n");

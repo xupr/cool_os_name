@@ -270,6 +270,8 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 			int i;
 			page_table_entry temp_page_table;
 			temp_page_table.ignored = 1;
+			temp_page_table.present = 0;
+			temp_page_table.physical_page = 0;
 			for(i = 0; i < 1024; current_page_table[i++] = temp_page_table);
 		}
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12) + (((int)base>>12) & 0x3FF));
@@ -277,8 +279,9 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 //		print("a\n");
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
+			print("321\n");
 			if(current_page_table->ignored){
-//				print("nope2\n");
+				//print("nope2\n");
 				list_node *current_memory_page_block = memory_page_map->first;
 				int index = 0;
 				while(current_memory_page_block){
@@ -412,6 +415,8 @@ void identity_page(PAGE_TABLE page_table_index, void *base, int limit){
 			int i;
 			page_table_entry temp_page_table;
 			temp_page_table.ignored = 1;
+			temp_page_table.present = 0;
+			temp_page_table.physical_page = 0;
 			for(i = 0; i < 1024; current_page_table[i++] = temp_page_table);
 		}
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12)) + (((int)base>>12) & 0x3FF);
