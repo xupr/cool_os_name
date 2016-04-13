@@ -90,19 +90,19 @@ void init_memory(char *memory_map_length, void *memory_map){
 				kernel_page_block->pinned = 1;
 				kernel_page_block->base = (void *)0x100000;
 				kernel_page_block->limit = 0x4FFFFF;
-				kernel_page_block->process = KERNEL_PID;
+				kernel_page_block->process = -1;
 
 				page_block->bound = 0;
 				page_block->pinned = 0;
 				page_block->base = (void *)0x600000;
 				page_block->limit = (int)current_block->base + current_block->limit - 0x600000 - 1;
-				page_block->process = KERNEL_PID;
+				page_block->process = -1;
 			}else{
 				page_block->bound = 0;
 				page_block->pinned = 0;
 				page_block->base = current_block->base;
 				page_block->limit = current_block->limit;
-				page_block->process = KERNEL_PID;
+				page_block->process = -1;
 			}
 
 		}else{
@@ -110,17 +110,17 @@ void init_memory(char *memory_map_length, void *memory_map){
 			page_block->pinned = 1;
 			page_block->base = current_block->base;
 			page_block->limit = current_block->limit;
-			page_block->process = KERNEL_PID;
+			page_block->process = -1;
 		}
 
 		add_to_list(memory_page_map, page_block);
-/*		print(itoa((int)current_block->base));
+		/*print(itoa((int)current_block->base));
 		print("   ");
 		print(itoa(current_block->limit));
 		print("   ");
 		print(itoa(current_block->type));
-		print("\n");
-*/	}
+		print("\n");*/
+	}
 	
 	print("--memory map inititalized\n");
 

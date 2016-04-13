@@ -23,14 +23,15 @@ typedef enum{
 } PROCESS_STATE;
 
 typedef struct{
-	int eax;
-	int ecx;
-	int edx;
-	int ebx;
-	int esp;
-	int ebp;
-	int esi;
-	int edi;
+	unsigned int eflags;
+	unsigned int edi;
+	unsigned int esi;
+	unsigned int ebp;
+	unsigned int esp;
+	unsigned int ebx;
+	unsigned int edx;
+	unsigned int ecx;
+	unsigned int eax;
 } registers;
 
 typedef struct{
@@ -90,9 +91,9 @@ void init_process(void){
 	add_to_list(process_list, kernel_process);
 */}
 
-int pit_interrupt_handler(registers *regs_end){
+int pit_interrupt_handler(registers *regs){
 //	print("kappa123");
-	registers *regs = regs_end-1;
+	//registers *regs = regs_end+1;
 	list_node *process_node = process_list->first;
 	process_descriptor *process = (process_descriptor *)process_node->value;
 	if(process_list->length == 1){
@@ -100,6 +101,7 @@ int pit_interrupt_handler(registers *regs_end){
 			print("running created process\n");
 			process->state = RUNNING;
 			process->quantum = 5;
+			regs->esp = 0x9FFFFF;
 			switch_memory_map(process->page_table);
 			send_EOI(0);
 			return PROCESS_CODE_BASE;
