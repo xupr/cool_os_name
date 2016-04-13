@@ -172,8 +172,8 @@ load_kernel_test_DRQ:
 	LOOP load_kernel_read_sectors
 	
 	RET
-	[BITS 16]
 
+[BITS 16]
 get_memory_map:
 	MOV EAX, 0
 	PUSH EAX

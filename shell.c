@@ -49,13 +49,13 @@ int main(void){
 			char *file_name = strtok(0, " \n"),
 			     *data = strtok(0, "\n");
 			//print(file_name);
-			FILE fd = open(file_name);
+			FILE fd = fopen(file_name);
 //			print(itoa(fd));
 			fwrite(data, strlen(data) + 1, fd);
 		}else if(!strcmp(command, read_file_command)){
 			char *file_name = strtok(0, " \n");
-			FILE fd = open(file_name);
-			read(out, 1024, fd);
+			FILE fd = fopen(file_name);
+			fread(out, 1024, fd);
 			print(out);
 			print("\n");
 		}	

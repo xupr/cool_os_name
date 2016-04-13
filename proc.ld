@@ -15,6 +15,7 @@ SECTIONS{
 	 } >flash*/
 	GROUP lma : {
 		.text : {
+			*(.load)
 			*(.text)	
 			*(.rodata)
 		}

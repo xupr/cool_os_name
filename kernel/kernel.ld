@@ -14,22 +14,23 @@ SECTIONS{
 		*(.boot)
 	 } >flash*/
 	GROUP lma : {
-	.text : {
-		*(.text)	
-		*(.rodata)
-	}
+		.text : {
+			*(.load)
+			*(.text)	
+			*(.rodata)
+		}
 
-	.rest : {
-		*(*)
-	}
-	
-	.data : {
-		*(.data)
-	} 
-	
-	.bss : {
-		*(.bss)
-	}
+		.rest : {
+			*(*)
+		}
+		
+		.data : {
+			*(.data)
+		} 
+		
+		.bss : {
+			*(.bss)
+		}
 	} 
 }
 

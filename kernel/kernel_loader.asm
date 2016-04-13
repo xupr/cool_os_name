@@ -1,7 +1,7 @@
 [BITS 32]
 GLOBAL _start
 EXTERN k_main
-SECTION .text
+SECTION .load
 _start:
 	POP EAX
 	POP EDX
