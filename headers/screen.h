@@ -20,6 +20,7 @@ typedef enum _VGA_COLOR {
 	WHITE
 } VGA_COLOR;
 
+int get_current_screen_index(void);
 void switch_screen(int new_screen_index);
 void print(char *str);
 void print_to_other_screen(char *str, int screen_index);

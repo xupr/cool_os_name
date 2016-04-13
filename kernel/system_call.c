@@ -29,7 +29,7 @@ void *system_call_interrupt(void){
 
 		case INPUT:
 			asm("" : "=d"(str), "=c"(length));
-			input(str, length);
+			input(str, length, get_process_screen_index(get_current_process()));
 			break;
 
 		case HEAP_START:

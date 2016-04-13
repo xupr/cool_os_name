@@ -42,6 +42,10 @@ static VGA_COLOR background = GREEN;
 static list *screen_list;
 static int current_screen_index = 0;
 
+int get_current_screen_index(void){
+	return current_screen_index;
+}
+
 void init_screen(void){
 	clear_screen();
 	unsigned char mo_reg = inb(MISC_OUTPUT_REGISTER_READ);

@@ -16,9 +16,16 @@
 #define PS2_SET_CONFIGURATION 0x60
 #define PS2_SCAN_CODE 0xF0
 
+typedef struct {
+	char *keyboard_buffer;
+	int keyboard_buffer_index;
+	int need_to_buffer;
+} keyboard_buffer_descriptor;
+
 void *keyboard_interrupt_entry;
-char *keyboard_buffer;
-int keyboard_buffer_index = 0;
+//char *keyboard_buffer;
+//int keyboard_buffer_index = 0;
+list *keyboard_buffers;
 char need_to_buffer = 0;
 static int status = 0;
 static key_state state = KEY_DOWN;
@@ -27,26 +34,28 @@ static key_state state = KEY_DOWN;
 list *KEYBOARD_BEHAVIOR[256];
 scan_code_set3 COMMAND_KEYS[5] = {0, 0, 0, 0, 0};
 
-void input(char *buffer, int length){
-	need_to_buffer = 1;
+void input(char *buffer, int length, int screen_index){
+	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, screen_index);
+	keyboard_buffer->need_to_buffer = 1;
 	//print("kappa123");
 /*	print(itoa(keyboard_buffer_index));
 	print("\n");
 	print(itoa(length));
 	print("\n");
-*/	while(keyboard_buffer_index < length && need_to_buffer);//{
+*/	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer);//{
 	//	if(keyboard_buffer_index > 0 && keyboard_buffer[keyboard_buffer_index - 1] == '\n')
 	//		break;
 	//}
 	//need_to_buffer = 0;
 	//print("kappa123");
-	memcpy(buffer, keyboard_buffer, keyboard_buffer_index);
-	buffer[keyboard_buffer_index] = '\0';
-	keyboard_buffer_index = 0;
+	memcpy(buffer, keyboard_buffer->keyboard_buffer, keyboard_buffer->keyboard_buffer_index);
+	buffer[keyboard_buffer->keyboard_buffer_index] = '\0';
+	keyboard_buffer->keyboard_buffer_index = 0;
 }
 
 void buffer_char(scan_code_set3 scan_code, key_state state){
-	if(need_to_buffer){
+	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, get_current_screen_index());
+	if(keyboard_buffer->need_to_buffer){
 		if(state == KEY_UP) //don't do anything on key release
 			return;
 
@@ -63,15 +72,15 @@ void buffer_char(scan_code_set3 scan_code, key_state state){
 				else if(c > 0x5A && c < 0x5E)
 					c = SHIFT_ASCII[c-0x44];
 				//s[0] = c;
-				keyboard_buffer[keyboard_buffer_index] = c;
-				++keyboard_buffer_index;
+				keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = c;
+				++keyboard_buffer->keyboard_buffer_index;
 				//print(s);
 				break;
 			case 0:;
-				keyboard_buffer[keyboard_buffer_index] = scancode_set3[scan_code];
-				++keyboard_buffer_index;
+				keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = scancode_set3[scan_code];
+				++keyboard_buffer->keyboard_buffer_index;
 				if(scancode_set3[scan_code] == '\n')//{
-					need_to_buffer = 0;
+					keyboard_buffer->need_to_buffer = 0;
 //					print("kappa123?\n");
 //				}
 				//s[0] = scancode_set3[scan_code];
@@ -167,9 +176,10 @@ void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){
 void keyboard_backspace_command(scan_code_set3 scan_code, key_state state){
 	if(state != KEY_DOWN)
 		return;
-	if(need_to_buffer && keyboard_buffer_index != 0){
+	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, get_current_screen_index());
+	if(keyboard_buffer->need_to_buffer && keyboard_buffer->keyboard_buffer_index != 0){
 		print("\b");
-		keyboard_buffer[--keyboard_buffer_index] = '\0';
+		keyboard_buffer->keyboard_buffer[--keyboard_buffer->keyboard_buffer_index] = '\0';
 	}
 }
 
@@ -353,7 +363,16 @@ void add_keyboard_event(scan_code_set3 scan_code, void *event_handler){
 }
 
 void init_keyboard(void){
-	keyboard_buffer = (char *)malloc(sizeof(char)*KEYBOARD_BUFF_SIZE);
+	//keyboard_buffer = (char *)malloc(sizeof(char)*KEYBOARD_BUFF_SIZE);
+	keyboard_buffers = create_list();
+	int i;
+	for(i = 0; i < 4; ++i){
+		keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)malloc(sizeof(keyboard_buffer_descriptor));
+		keyboard_buffer->keyboard_buffer = (char *)malloc(sizeof(char)*KEYBOARD_BUFF_SIZE);
+		keyboard_buffer->keyboard_buffer_index = 0;
+		keyboard_buffer->need_to_buffer = 0;
+		add_to_list(keyboard_buffers, keyboard_buffer);
+	}
 	init_keyboard_behavior();
 	create_IDT_descriptor(0x21, (unsigned int) &keyboard_interrupt_entry, 0x8, 0x8F);
 	outb(PS2_COMMAND_REGISTER, PS2_GET_CONFIGURATION);
