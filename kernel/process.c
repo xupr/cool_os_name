@@ -23,15 +23,20 @@ typedef enum{
 } PROCESS_STATE;
 
 typedef struct{
-	unsigned int eflags;
+//	unsigned int eflags;
 	unsigned int edi;
 	unsigned int esi;
 	unsigned int ebp;
-	unsigned int esp;
+	unsigned int ignored_esp;
 	unsigned int ebx;
 	unsigned int edx;
 	unsigned int ecx;
 	unsigned int eax;
+	unsigned int eip;
+	unsigned int cs;
+	unsigned int eflags;
+	unsigned int esp;
+	unsigned int ss;
 } registers;
 
 typedef struct{
@@ -82,7 +87,7 @@ void init_process(void){
 	outb(PIT_COMMAND_REGISTER, 0b00110100);
 	outb(PIT_CHANNEL0_DATA_PORT, 0);
 	outb(PIT_CHANNEL0_DATA_PORT, 0);
-	create_IDT_descriptor(0x20, (int)&pit_interrupt_entry, 0x8, 0x8F);
+	create_IDT_descriptor(0x20, (int)&pit_interrupt_entry, 0x8, 0x8E);
 
 	process_list = create_list();
 /*	process_descriptor *kernel_process = (process_descriptor *)malloc(sizeof(process_descriptor));
@@ -98,9 +103,7 @@ int pit_interrupt_handler(registers *regs){
 	list_node *process_node = process_list->first;
 	process_descriptor *process = (process_descriptor *)process_node->value;
 	if(process_list->length == 0){
-		asm("cli");
-		execute("shell.o", 0);
-		asm("sti");
+		execute("shell.o", screen_index_for_shell++);
 		send_EOI(0);
 		return 0;			
 	}else if(process_list->length == 1){
@@ -109,16 +112,22 @@ int pit_interrupt_handler(registers *regs){
 			process->state = RUNNING;
 			process->quantum = 5;
 			regs->esp = 0x9FFFFF;
+			regs->cs = 0x1B;
+			regs->ss = 0x23;
+			regs->eip = PROCESS_CODE_BASE;
+			//print(itoa(regs->eflags));
 			switch_memory_map(process->page_table);
 			send_EOI(0);
 			return PROCESS_CODE_BASE;
 		}
 		
+		//print(itoa(regs->eip));
 		if(process->quantum > 1)
 			--process->quantum;
 
 		//execute("shell.o", screen_index_for_shell++);
 		
+		//execute("shell.o", screen_index_for_shell++);
 		send_EOI(0);
 		return 0;
 	}

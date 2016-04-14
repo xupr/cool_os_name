@@ -3,8 +3,9 @@ GLOBAL jump_to_ring3
 SECTION .text
 jump_to_ring3:
 	MOV [save_eax], EAX
-	PUSHF
-	POP EAX
+	;PUSHF
+	;POP EAX
+	MOV EAX, [ESP + 20]
 	MOV [flags], EAX
 	MOV EAX, [ESP + 8]
 	MOV [stack_address], EAX
