@@ -46,6 +46,7 @@ typedef struct{
 	PROCESS_STATE state;
 	int quantum;
 	int screen_index;
+	int kernel_stack;
 	registers *regs;
 } process_descriptor;
 
@@ -65,10 +66,15 @@ typedef struct{
 void *pit_interrupt_entry;
 static list *process_list;
 static char tss[104];
+static int free_kernel_stack = 0x4FFFFF;
 static int current_process = 0;
 //void (*jump_to_ring3)(int offset);
 extern void jump_to_ring3(int offset);
 static int screen_index_for_shell = 0;
+
+void switch_kernel_stack(int new_kernel_stack){
+	*(int *)(tss + 4) = new_kernel_stack;
+}
 
 void init_process(void){
 	char gdt[6];
@@ -78,7 +84,7 @@ void init_process(void){
 	*(c+4) = (char)(((int)tss>>16) & 0xFF);
 	*(c+7) = (char)(((int)tss>>24) & 0xFF);
 	//print(itoa((int)tss));
-	*(int *)(tss + 4) = 0x4fffff;
+	*(int *)(tss + 4) = 0x4FFFFF;
 	*(short *)(tss + 8) = 0x10;
 	*(short *)(tss + 102) = 104;
 	asm("mov ax, 0x2B; ltr ax");
@@ -97,59 +103,134 @@ void init_process(void){
 	add_to_list(process_list, kernel_process);
 */}
 
-int pit_interrupt_handler(registers *regs){
+int find_process_to_run(void){
+	list_node *process_node = process_list->first;
+	int i = 0;
+	int found = 0;
+	while(process_node){
+		process_descriptor *process = (process_descriptor *)process_node->value;
+		if(found)
+			if(process->state == CREATED || process->state == WAITING)
+				return i;
+		
+		if(process->state == RUNNING)
+			found = 1;
+
+		process_node = process_node->next;
+		++i;
+	}
+
+	return 0;
+}
+
+void pit_interrupt_handler(registers *regs){
 	//print("kappa123");
 	//registers *regs = regs_end+1;
+	switch_memory_map(KERNEL_PAGE_TABLE);
 	list_node *process_node = process_list->first;
 	process_descriptor *process = (process_descriptor *)process_node->value;
 	if(process_list->length == 0){
 		execute("shell.o", screen_index_for_shell++);
 		send_EOI(0);
-		return 0;			
-	}else if(process_list->length == 1){
+		return;			
+	}
+	
+	if(process_list->length == 1){
 		if(process->state == CREATED){
 			print("running created process\n");
 			process->state = RUNNING;
 			process->quantum = 5;
+			process->regs = (registers *)malloc(sizeof(registers));
 			regs->esp = 0x9FFFFF;
 			regs->cs = 0x1B;
 			regs->ss = 0x23;
 			regs->eip = PROCESS_CODE_BASE;
 			//print(itoa(regs->eflags));
+			switch_kernel_stack(process->kernel_stack);
 			switch_memory_map(process->page_table);
 			send_EOI(0);
-			return PROCESS_CODE_BASE;
+			return;
 		}
 		
 		//print(itoa(regs->eip));
 		if(process->quantum > 1)
 			--process->quantum;
 
-		//execute("shell.o", screen_index_for_shell++);
-		
-		//execute("shell.o", screen_index_for_shell++);
+		execute("shell.o", screen_index_for_shell++);
+		switch_memory_map(process->page_table);
 		send_EOI(0);
-		return 0;
+		return;
+	}
+
+	if(process_list->length <= 3){
+		print("321");
+		execute("shell.o", screen_index_for_shell++);
 	}
 
 	while(process_node){
 		process = (process_descriptor *)process_node->value;
 		if(process->state == RUNNING){
-		/*	print("running process quantum: ");
+			/*print("running process quantum: ");
 			print(itoa(process->quantum));
 			print("\n");*/
-			if(!(--process->quantum)){
-				process->quantum = 5;
-				//print("process quantum ended");
+			if(process->quantum-- < 1){
+				int process_to_run_index = find_process_to_run();
+				if(process_to_run_index == -1){
+					print("asd");
+					process->quantum = 5;
+					switch_memory_map(process->page_table);
+					return;
+				}
+
+				process_descriptor *process_to_run = get_list_element(process_list, process_to_run_index);
+
+				//print("switching processes to ");
+				//print(itoa(process_to_run_index));
+				//print("\n");
+				if(process_to_run->state == CREATED){
+					memcpy(process->regs, regs, sizeof(registers));
+					process->state = WAITING;
+
+					print("running created process\n");
+					current_process = process_to_run_index;
+					process_to_run->state = RUNNING;
+					process_to_run->quantum = 5;
+					process_to_run->regs = (registers *)malloc(sizeof(registers));
+					regs->esp = 0x9FFFFF;
+					regs->cs = 0x1B;
+					regs->ss = 0x23;
+					regs->eip = PROCESS_CODE_BASE;
+					//print(itoa(regs->eflags));
+					switch_kernel_stack(process_to_run->kernel_stack);
+					switch_memory_map(process_to_run->page_table);
+					send_EOI(0);
+					return;
+				}
+
+				if(process_to_run->state == WAITING){
+					memcpy(process->regs, regs, sizeof(registers));
+					process->state = WAITING;
+					
+					current_process = process_to_run_index;
+					process_to_run->state = RUNNING;
+					process_to_run->quantum = 5;
+					memcpy(regs, process_to_run->regs, sizeof(registers));
+					switch_kernel_stack(process_to_run->kernel_stack);
+					switch_memory_map(process_to_run->page_table);
+					send_EOI(0);
+					return;
+				}
+				print("process quantum ended");
 			}
 			break;
 		}
 		
 		process_node = process_node->next;
 	}
-
+	switch_memory_map(process->page_table);
+	//print("how the fuck did i get here?");
 	send_EOI(0);
-	return 0;
+	return;
 }
 
 FILE fopen(char *file_name){
@@ -206,10 +287,13 @@ void create_process(char *code, int length, int screen_index){
 //	print(itoa(length));
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor));
 	process->page_table = create_page_table();
+	//print(itoa(process->page_table));
 	process->heap_start = (void *)(PROCESS_CODE_BASE + length);
 	process->open_files = create_list();
 	process->state = CREATED;
 	process->screen_index = screen_index;
+	process->kernel_stack = free_kernel_stack;
+	free_kernel_stack -= 0x10000;
 	add_to_list(process_list, process);
 	identity_page(process->page_table, (void *)KERNEL_BASE, KERNEL_LIMIT);
 //	identity_page(process->page_table, (void *)SCREEN, SCREEN_END - SCREEN - 1);
@@ -225,7 +309,7 @@ void create_process(char *code, int length, int screen_index){
 }
 
 PID get_current_process(void){
-	return (PID)0;
+	return (PID)current_process;
 }
 
 int get_process_screen_index(PID process_index){

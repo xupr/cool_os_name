@@ -279,7 +279,7 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 //		print("a\n");
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
-			print("321\n");
+			//print("321\n");
 			if(current_page_table->ignored){
 				//print("nope2\n");
 				list_node *current_memory_page_block = memory_page_map->first;
@@ -372,7 +372,9 @@ void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base,
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
 			//print(itoa(((current_page_table->physical_page)<<12)));
+			//print(itoa(*source));
 			memcpy((char *)((current_page_table->physical_page)<<12), source, (limit - 1)%PAGE_SIZE + 1);
+			//print(itoa(*(char *)((current_page_table->physical_page)<<12)));
 			limit -= PAGE_SIZE;
 			source += PAGE_SIZE;
 		}

@@ -35,6 +35,8 @@ list *KEYBOARD_BEHAVIOR[256];
 scan_code_set3 COMMAND_KEYS[5] = {0, 0, 0, 0, 0};
 
 void input(char *buffer, int length, int screen_index){
+//	print(itoa(screen_index));
+//	print("\n");
 	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, screen_index);
 	keyboard_buffer->need_to_buffer = 1;
 	//print("kappa123");
@@ -42,10 +44,20 @@ void input(char *buffer, int length, int screen_index){
 	print("\n");
 	print(itoa(length));
 	print("\n");
-*/	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer);//{
+*/	
+	asm("cli");
+	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer){
+		asm("sti;hlt;cli");
+	/*	if(screen_index == 0)
+			print("-");
+		if(screen_index == 1)
+			print("+");
+	*/	//print(itoa(screen_index));
+		//print("\n");
 	//	if(keyboard_buffer_index > 0 && keyboard_buffer[keyboard_buffer_index - 1] == '\n')
 	//		break;
-	//}
+	}
+	asm("sti");
 	//need_to_buffer = 0;
 	//print("kappa123");
 	memcpy(buffer, keyboard_buffer->keyboard_buffer, keyboard_buffer->keyboard_buffer_index);
@@ -79,10 +91,10 @@ void buffer_char(scan_code_set3 scan_code, key_state state){
 			case 0:;
 				keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = scancode_set3[scan_code];
 				++keyboard_buffer->keyboard_buffer_index;
-				if(scancode_set3[scan_code] == '\n')//{
+				if(scancode_set3[scan_code] == '\n'){
 					keyboard_buffer->need_to_buffer = 0;
-//					print("kappa123?\n");
-//				}
+					//print("kappa123?\n");
+				}
 				//s[0] = scancode_set3[scan_code];
 				//print(s);
 				break;

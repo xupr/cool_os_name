@@ -1,3 +1,5 @@
+#define KERNEL_PAGE_TABLE 0
+
 typedef struct {
 	char present : 1;
 	char read_write : 1;

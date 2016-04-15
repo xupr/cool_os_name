@@ -310,6 +310,7 @@ void execute(char *file_name, int screen_index){
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	//print(itoa(current_file_descriptor->inode->size));
 	char *buff = (char *)malloc(current_file_descriptor->inode->size);
+	current_file_descriptor->file_offset = 0;
 	read(file_descriptor_index, buff, current_file_descriptor->inode->size);
 	create_process(buff, current_file_descriptor->inode->size, screen_index);
 //	asm("call eax" : : "a"(buff));

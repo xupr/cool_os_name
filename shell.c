@@ -4,7 +4,8 @@
 
 int main(void){
 	char *write_file_commad = "write",
-	     *read_file_command = "read";
+	     *read_file_command = "read",
+	     *echo_command = "echo";
 	
 //	print(itoa((int)malloc(10)));
 //	print(itoa((int)malloc(10)));
@@ -42,7 +43,7 @@ int main(void){
 		memset(str, 0, 1024);
 		//char out[32];
 		input(str, 1024);
-		
+//		print("got my input");	
 		char *command = strtok(str, " \n");
 		if(!strcmp(command, write_file_commad)){
 			//print("holy");
@@ -57,6 +58,9 @@ int main(void){
 			FILE fd = fopen(file_name);
 			fread(out, 1024, fd);
 			print(out);
+			print("\n");
+		}else if(!strcmp(command, echo_command)){
+			print(strtok(0, "\n"));
 			print("\n");
 		}	
 		//	print("i'm so fking happy right now!");

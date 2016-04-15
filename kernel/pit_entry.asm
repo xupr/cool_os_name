@@ -25,10 +25,11 @@ pit_interrupt_entry:
 	PUSH ESP
 	CALL pit_interrupt_handler
 	ADD ESP, 4
-	MOV EAX, [ESP + 36]
+	MOV EAX, [ESP + 36] ;check if moving to a different ring
 	AND EAX, 3
 	TEST EAX, EAX
 	JE exit_pit_interrupt_entry
+	
 	MOV AX, [ESP + 48]
 	MOV DS, AX
 	MOV ES, AX
