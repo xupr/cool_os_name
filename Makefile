@@ -30,9 +30,11 @@ kernel/kernel.bin: ${KERNEL_OBJECT_FILES}
 
 shell: ${C_LIB_OBJECT_FILES} proc_entry.o shell.o
 	i686-elf-ld -T proc.ld $^ -o shell.bin
-	dd if=shell.bin of=os_copy.img conv=notrunc bs=1 count=4096 seek=17858560
-	dd if=shell.bin of=os.img conv=notrunc bs=1 count=4096 seek=17858560
-	./add_file.o
+	dd if=asd of=os_copy.img
+	./add_file.o shell.bin shell.o
+	./add_file.o safta.txt safta.txt
+	dd if=os_copy.img ibs=1M count=32 of=os.img
+	dd if=_os.img of=os.img bs=512 conv=notrunc
 
 clean:
 	rm */*.o
