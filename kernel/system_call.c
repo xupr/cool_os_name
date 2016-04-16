@@ -56,6 +56,10 @@ void *system_call_interrupt(void){
 			fread(str, length, fd);
 			break;
 
+		case FCLOSE:
+			asm("" : "=b"(fd));
+			fclose(fd);
+			break;
 	}
 
 	return 0;

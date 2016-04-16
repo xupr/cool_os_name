@@ -51,6 +51,7 @@ typedef struct{
 } process_descriptor;
 
 typedef struct{
+	int used;
 	FILE fd;
 	int file_offset;
 } open_file;
@@ -163,7 +164,6 @@ void pit_interrupt_handler(registers *regs){
 	}
 
 	if(process_list->length <= 3){
-		print("321");
 		execute("shell.o", screen_index_for_shell++);
 	}
 
@@ -236,8 +236,25 @@ void pit_interrupt_handler(registers *regs){
 FILE fopen(char *file_name){
 	FILE fd = open(file_name);
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
-	FILE vfd = process->open_files->length;
-	open_file *file = (open_file *)malloc(sizeof(open_file));
+	
+	list_node *current_open_file_node = process->open_files->first;
+	FILE vfd = 0;
+	while(current_open_file_node){
+		open_file *current_open_file = (open_file *)current_open_file_node->value;
+		if(!current_open_file->used)
+			break;
+
+		++vfd;
+		current_open_file_node = current_open_file_node->next;
+	}
+
+	open_file *file;
+	if(!current_open_file_node){
+		file = (open_file *)malloc(sizeof(open_file));
+		add_to_list(process->open_files, file);
+	}else
+		file = (open_file *)current_open_file_node->value;
+
 	file->fd = fd;
 	file->file_offset = 0;
 	add_to_list(process->open_files, file);
@@ -260,6 +277,32 @@ int fwrite(char *buff, int count, FILE fd){
 	int bytes_written = write(file->fd, buff, count);
 	file->file_offset += bytes_written;
 	return bytes_written;
+}
+
+void fclose(FILE fd){
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	open_file *file = get_list_element(process->open_files, fd);
+	
+	int found = 0;
+	list_node *current_process_descriptor_node = process_list->first;
+	while(current_process_descriptor_node && !found){
+		process_descriptor *current_process_descriptor = (process_descriptor *)current_process_descriptor_node->value;	
+		list_node *current_open_file_node = current_process_descriptor->open_files->first;
+		while(current_open_file_node && !found){
+			open_file *current_open_file = (open_file *)current_open_file_node->value;
+			if(current_open_file->used && current_open_file->fd == file->fd)
+				found = 1;
+
+			current_open_file_node = current_open_file_node->next;
+		}
+
+		current_process_descriptor_node = current_process_descriptor_node->next;
+	}
+
+	if(!found)
+		close(file->fd);
+
+	file->used = 0;
 }
 
 void handle_page_fault(void *address, int fault_info){

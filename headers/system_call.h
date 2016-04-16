@@ -4,7 +4,8 @@ enum SYSTEM_CALL {
 	HEAP_START,
 	FOPEN,
 	FWRITE,
-	FREAD
+	FREAD,
+	FCLOSE
 };
 
 void init_system_call(void);

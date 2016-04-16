@@ -53,12 +53,14 @@ int main(void){
 			FILE fd = fopen(file_name);
 //			print(itoa(fd));
 			fwrite(data, strlen(data) + 1, fd);
+			fclose(fd);
 		}else if(!strcmp(command, read_file_command)){
 			char *file_name = strtok(0, " \n");
 			FILE fd = fopen(file_name);
 			fread(out, 1024, fd);
 			print(out);
 			print("\n");
+			fclose(fd);
 		}else if(!strcmp(command, echo_command)){
 			print(strtok(0, "\n"));
 			print("\n");

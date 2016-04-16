@@ -31,3 +31,9 @@ void fread(char *buff, int length, FILE fd){
 	asm("int 0x40" : : "a"(FREAD), "b"(fd), "d"(buff), "c"(length));
 	asm("popa");
 }
+
+void fclose(FILE fd){
+	asm("pusha");
+	asm("int 0x40" : : "a"(FCLOSE), "b"(fd));
+	asm("popa");
+}

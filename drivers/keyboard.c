@@ -45,9 +45,10 @@ void input(char *buffer, int length, int screen_index){
 	print(itoa(length));
 	print("\n");
 */	
-	asm("cli");
+	//asm("cli");
 	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer){
-		asm("sti;hlt;cli");
+	//	asm("sti;hlt;cli");
+		asm("hlt");
 	/*	if(screen_index == 0)
 			print("-");
 		if(screen_index == 1)
@@ -57,7 +58,7 @@ void input(char *buffer, int length, int screen_index){
 	//	if(keyboard_buffer_index > 0 && keyboard_buffer[keyboard_buffer_index - 1] == '\n')
 	//		break;
 	}
-	asm("sti");
+	//asm("sti");
 	//need_to_buffer = 0;
 	//print("kappa123");
 	memcpy(buffer, keyboard_buffer->keyboard_buffer, keyboard_buffer->keyboard_buffer_index);
