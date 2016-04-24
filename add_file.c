@@ -58,17 +58,22 @@ int find_free_blocks(char *block_buff, int blocks_needed){
 }
 
 int main(int argc, char *argv[]){
-	if(argc < 3){
-		printf("%s\n", "usage: ./add_file.o [file name] [inserted file name]");
+	if(argc < 2){
+		printf("%s\n", "usage: ./add_file.o [file name]");
 	}
 
 	char *file_name = argv[1];
-	char *inserted_file_name = argv[2];
+	char *temp_buff = (char *)malloc(strlen(file_name));
+	strcpy(temp_buff, file_name);
+	char *inserted_file_name = strtok(temp_buff, "/\n"), *_prev = inserted_file_name;
+	while(inserted_file_name = strtok(0, "/\n"))
+		_prev = inserted_file_name;	
+	inserted_file_name = _prev;
 
 	struct stat *stat_buff = (struct stat *)malloc(sizeof(struct stat));
 	stat(file_name, stat_buff);
 	int file_size = stat_buff->st_size;
-
+	printf("%s, %d\n", file_name, file_size);
 	FILE *fd = fopen("./os_copy.img", "r+");
 	
 	fseek(fd, INODE_LIST_OFFSET, SEEK_SET);

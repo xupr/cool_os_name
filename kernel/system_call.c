@@ -60,6 +60,18 @@ void *system_call_interrupt(void){
 			asm("" : "=b"(fd));
 			fclose(fd);
 			break;
+
+		case EXIT:;
+			int status_code;
+			asm("" : "=d"(status_code));
+			exit_process(status_code);
+			break;
+
+		case EXECUTE:;
+			char *file_name;
+			asm("" : "=d"(file_name));
+			execute_from_process(file_name);
+
 	}
 
 	return 0;

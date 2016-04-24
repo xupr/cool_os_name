@@ -37,3 +37,9 @@ void fclose(FILE fd){
 	asm("int 0x40" : : "a"(FCLOSE), "b"(fd));
 	asm("popa");
 }
+
+void execute(char *file_name){
+	asm("pusha");
+	asm("int 0x40" : : "a"(EXECUTE), "d"(file_name));
+	asm("popa");
+}

@@ -41,6 +41,7 @@ static VGA_COLOR foreground = WHITE;
 static VGA_COLOR background = GREEN;
 static list *screen_list;
 static int current_screen_index = 0;
+static int to_print = 1;
 
 int get_current_screen_index(void){
 	return current_screen_index;
@@ -101,6 +102,8 @@ void switch_screen(int new_screen_index){
 }
 
 void set_vga_colors(VGA_COLOR new_foreground, VGA_COLOR new_background){
+	if(!to_print)
+		return;
 	foreground = new_foreground;
 	background = new_background;
 }
@@ -140,6 +143,8 @@ void scroll_pages(int count){
 }
 
 void print(char *str){
+	if(!to_print)
+		return;
 	unsigned char *screen = (unsigned char *)SCREEN + 2*get_cursor();
 	char color = foreground + (background<<4);
 	while(*str != '\0'){
@@ -173,6 +178,9 @@ void print(char *str){
 }
 
 void print_to_other_screen(char *str, int screen_index){
+	if(!to_print)
+		return;
+
 	if(current_screen_index == screen_index){
 		print(str);
 		return;
@@ -209,6 +217,14 @@ void print_to_other_screen(char *str, int screen_index){
 		scroll_lines((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
 	else if(offset > ((int)screen - (int)SCREEN)/2)
 		scroll_lines((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);*/
+}
+
+void print_on(void){
+	to_print = 1;
+}
+
+void print_off(void){
+	/*to_print = 0;*/
 }
 
 void clear_screen(void){

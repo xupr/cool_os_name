@@ -49,11 +49,11 @@ void input(char *buffer, int length, int screen_index){
 	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer){
 	//	asm("sti;hlt;cli");
 		asm("hlt");
-	/*	if(screen_index == 0)
+		/*if(get_current_process() == 0)
 			print("-");
-		if(screen_index == 1)
-			print("+");
-	*/	//print(itoa(screen_index));
+		if(get_current_process() == 1)
+			print("+");*/
+		//print(itoa(screen_index));
 		//print("\n");
 	//	if(keyboard_buffer_index > 0 && keyboard_buffer[keyboard_buffer_index - 1] == '\n')
 	//		break;
@@ -387,7 +387,7 @@ void init_keyboard(void){
 		add_to_list(keyboard_buffers, keyboard_buffer);
 	}
 	init_keyboard_behavior();
-	create_IDT_descriptor(0x21, (unsigned int) &keyboard_interrupt_entry, 0x8, 0x8F);
+	create_IDT_descriptor(0x21, (unsigned int) &keyboard_interrupt_entry, 0x8, 0x8E);
 	outb(PS2_COMMAND_REGISTER, PS2_GET_CONFIGURATION);
 	unsigned char ps2_configuration = inb(PS2_DATA_REGISTER); 
 	outb(PS2_COMMAND_REGISTER, PS2_SET_CONFIGURATION);

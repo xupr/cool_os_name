@@ -1,4 +1,5 @@
 #include "../headers/process.h"
+#include "../headers/kernel.h"
 #include "../headers/memory.h"
 #include "../headers/list.h"
 #include "../headers/heap.h"
@@ -19,7 +20,8 @@ typedef enum{
 	CREATED,
 	WAITING,
 	RUNNING,
-	BLOCKED
+	BLOCKED,
+	EXITED
 } PROCESS_STATE;
 
 typedef struct{
@@ -39,7 +41,7 @@ typedef struct{
 	unsigned int ss;
 } registers;
 
-typedef struct{
+typedef struct _process_descriptor{
 	PAGE_TABLE page_table;
 	void *heap_start;
 	list *open_files;
@@ -48,6 +50,7 @@ typedef struct{
 	int screen_index;
 	int kernel_stack;
 	registers *regs;
+	struct _process_descriptor *parent;
 } process_descriptor;
 
 typedef struct{
@@ -58,7 +61,7 @@ typedef struct{
 
 typedef struct{
 	char present : 1;
-	char wrtie : 1;
+	char write : 1;
 	char user : 1;
 	char reserved_write : 1;
 	char instruction_fetch : 1;
@@ -68,10 +71,11 @@ void *pit_interrupt_entry;
 static list *process_list;
 static char tss[104];
 static int free_kernel_stack = 0x4FFFFF;
-static int current_process = 0;
+static int current_process = -1;
 //void (*jump_to_ring3)(int offset);
 extern void jump_to_ring3(int offset);
 static int screen_index_for_shell = 0;
+static int exited_process = 0;
 
 void switch_kernel_stack(int new_kernel_stack){
 	*(int *)(tss + 4) = new_kernel_stack;
@@ -105,7 +109,35 @@ void init_process(void){
 */}
 
 int find_process_to_run(void){
+	int process_to_run = current_process+1;
+	if(process_to_run >= process_list->length)
+		process_to_run = 0;
+
 	list_node *process_node = process_list->first;
+	int i = 0;
+	while(process_node){
+		process_descriptor *process = (process_descriptor *)process_node->value;
+		if(i >= process_to_run)
+			if(process->state == CREATED || process->state == WAITING)
+				return i;
+
+		process_node = process_node->next;
+		++i;
+	}
+	
+	i = 0;
+	process_node = process_list->first;
+	while(process_node){
+		process_descriptor *process = (process_descriptor *)process_node->value;
+		if(process->state == CREATED || process->state == WAITING)
+			return i;
+
+		process_node = process_node->next;
+		++i;
+	}
+
+	return current_process;
+	/*list_node *process_node = process_list->first;
 	int i = 0;
 	int found = 0;
 	while(process_node){
@@ -114,121 +146,99 @@ int find_process_to_run(void){
 			if(process->state == CREATED || process->state == WAITING)
 				return i;
 		
-		if(process->state == RUNNING)
+		if(process->state == RUNNING || (process->state == BLOCKED && process->quantum != 0))
 			found = 1;
 
 		process_node = process_node->next;
 		++i;
 	}
 
-	return 0;
+	return 0;*/
+}
+
+void copy_registers(registers *dst, registers *src){
+	if(src->cs & 3){
+		memcpy(dst, src, sizeof(registers));
+		return;
+	}
+
+	memcpy(dst, src, sizeof(registers) - 2*4);
+}
+
+void switch_process(PID new_process_index, registers *regs){
+	process_descriptor *new_process = (process_descriptor *)get_list_element(process_list, new_process_index);
+	if(new_process->state == CREATED){
+		/*print("switching from PID ");
+		if(current_process != -1)
+			print(itoa(current_process));
+		else
+			print("-1");*/
+		print("running created process with PID ");
+		print(itoa(new_process_index));
+		print("\n");
+		current_process = new_process_index;
+		new_process->state = RUNNING;
+		new_process->quantum = 1;
+		new_process->regs = (registers *)malloc(sizeof(registers));
+		regs->esp = 0x9FFFFF;
+		regs->cs = 0x1B;
+		regs->ss = 0x23;
+		regs->eip = PROCESS_CODE_BASE;
+		//print(itoa(regs->eflags));
+		switch_kernel_stack(new_process->kernel_stack);
+		/*print(itoa(new_process->page_table));*/
+		switch_memory_map(new_process->page_table);
+		return;
+	}
+
+	/*print("switching from PID ");
+	if(current_process != -1)
+		print(itoa(current_process));
+	else
+		print("-1");
+	print(" to PID ");
+	print(itoa(new_process_index));
+	print("\n");*/
+	if(new_process->state == WAITING){
+		current_process = new_process_index;
+		new_process->state = RUNNING;
+		new_process->quantum = 1;
+		memcpy(regs, new_process->regs, sizeof(registers));
+		if((regs->cs & 3) == 0)
+			regs->esp = new_process->kernel_stack; 
+			
+		switch_kernel_stack(new_process->kernel_stack);
+		switch_memory_map(new_process->page_table);
+		return;
+	}
 }
 
 void pit_interrupt_handler(registers *regs){
-	//print("kappa123");
-	//registers *regs = regs_end+1;
 	switch_memory_map(KERNEL_PAGE_TABLE);
-	list_node *process_node = process_list->first;
-	process_descriptor *process = (process_descriptor *)process_node->value;
 	if(process_list->length == 0){
-		execute("shell.o", screen_index_for_shell++);
-		send_EOI(0);
-		return;			
-	}
-	
-	if(process_list->length == 1){
-		if(process->state == CREATED){
-			print("running created process\n");
-			process->state = RUNNING;
-			process->quantum = 5;
-			process->regs = (registers *)malloc(sizeof(registers));
-			regs->esp = 0x9FFFFF;
-			regs->cs = 0x1B;
-			regs->ss = 0x23;
-			regs->eip = PROCESS_CODE_BASE;
-			//print(itoa(regs->eflags));
-			switch_kernel_stack(process->kernel_stack);
-			switch_memory_map(process->page_table);
-			send_EOI(0);
-			return;
-		}
-		
-		//print(itoa(regs->eip));
-		if(process->quantum > 1)
-			--process->quantum;
-
-		execute("shell.o", screen_index_for_shell++);
-		switch_memory_map(process->page_table);
 		send_EOI(0);
 		return;
 	}
 
-	if(process_list->length <= 3){
-		execute("shell.o", screen_index_for_shell++);
+	if(current_process == -1){
+		switch_process(find_process_to_run(), regs);
+		send_EOI(0);
+		return;
 	}
 
-	while(process_node){
-		process = (process_descriptor *)process_node->value;
-		if(process->state == RUNNING){
-			/*print("running process quantum: ");
-			print(itoa(process->quantum));
-			print("\n");*/
-			if(process->quantum-- < 1){
-				int process_to_run_index = find_process_to_run();
-				if(process_to_run_index == -1){
-					print("asd");
-					process->quantum = 5;
-					switch_memory_map(process->page_table);
-					return;
-				}
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(--process->quantum < 1 || process->state == BLOCKED){
+		memcpy(process->regs, regs, sizeof(registers));
+		process->kernel_stack = (int)(regs+1);
+		if(process->state == RUNNING)
+			process->state = WAITING;
 
-				process_descriptor *process_to_run = get_list_element(process_list, process_to_run_index);
-
-				//print("switching processes to ");
-				//print(itoa(process_to_run_index));
-				//print("\n");
-				if(process_to_run->state == CREATED){
-					memcpy(process->regs, regs, sizeof(registers));
-					process->state = WAITING;
-
-					print("running created process\n");
-					current_process = process_to_run_index;
-					process_to_run->state = RUNNING;
-					process_to_run->quantum = 5;
-					process_to_run->regs = (registers *)malloc(sizeof(registers));
-					regs->esp = 0x9FFFFF;
-					regs->cs = 0x1B;
-					regs->ss = 0x23;
-					regs->eip = PROCESS_CODE_BASE;
-					//print(itoa(regs->eflags));
-					switch_kernel_stack(process_to_run->kernel_stack);
-					switch_memory_map(process_to_run->page_table);
-					send_EOI(0);
-					return;
-				}
-
-				if(process_to_run->state == WAITING){
-					memcpy(process->regs, regs, sizeof(registers));
-					process->state = WAITING;
-					
-					current_process = process_to_run_index;
-					process_to_run->state = RUNNING;
-					process_to_run->quantum = 5;
-					memcpy(regs, process_to_run->regs, sizeof(registers));
-					switch_kernel_stack(process_to_run->kernel_stack);
-					switch_memory_map(process_to_run->page_table);
-					send_EOI(0);
-					return;
-				}
-				print("process quantum ended");
-			}
-			break;
-		}
-		
-		process_node = process_node->next;
+		switch_process(find_process_to_run(), regs);
+		send_EOI(0);
+		return;
 	}
+
 	switch_memory_map(process->page_table);
-	//print("how the fuck did i get here?");
 	send_EOI(0);
 	return;
 }
@@ -307,7 +317,27 @@ void fclose(FILE fd){
 
 void handle_page_fault(void *address, int fault_info){
 	set_vga_colors(WHITE, RED);
-	print("page fault: ");
+	print("page fault on address ");
+	set_vga_colors(WHITE, RED);
+	print(itoa((int)address));
+	set_vga_colors(WHITE, RED);
+	print(": ");
+	set_vga_colors(WHITE, RED);
+	if((*(page_fault_error_code *)&fault_info).write)
+		print("WRITE, ");
+	else
+		print("READ, ");
+	set_vga_colors(WHITE, RED);
+	if((*(page_fault_error_code *)&fault_info).user)
+		print("USER, ");
+	else
+		print("KERNEL, ");
+	set_vga_colors(WHITE, RED);
+	if((*(page_fault_error_code *)&fault_info).reserved_write)
+		print("RESERVED WRITE, ");
+	set_vga_colors(WHITE, RED);
+	if((*(page_fault_error_code *)&fault_info).instruction_fetch)
+		print("INSTRUCTION FETCH, ");
 	if(!(*(page_fault_error_code *)&fault_info).present){
 		set_vga_colors(WHITE, RED);
 		print("page not present\n");
@@ -316,6 +346,7 @@ void handle_page_fault(void *address, int fault_info){
 	}else{
 		set_vga_colors(WHITE, RED);
 		print("no premissions to enter page\n");
+
 stop:
 		asm("hlt");
 		goto stop;
@@ -327,7 +358,8 @@ void *get_heap_start(PID process_index){
 }
 
 void create_process(char *code, int length, int screen_index){
-//	print(itoa(length));
+	cli();
+	/*print(itoa(*code));*/
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor));
 	process->page_table = create_page_table();
 	//print(itoa(process->page_table));
@@ -336,19 +368,40 @@ void create_process(char *code, int length, int screen_index){
 	process->state = CREATED;
 	process->screen_index = screen_index;
 	process->kernel_stack = free_kernel_stack;
+	process->parent = 0;
 	free_kernel_stack -= 0x10000;
 	add_to_list(process_list, process);
+	/*PID _current_process = current_process;
+	current_process = process_list->length - 1;*/
 	identity_page(process->page_table, (void *)KERNEL_BASE, KERNEL_LIMIT);
 //	identity_page(process->page_table, (void *)SCREEN, SCREEN_END - SCREEN - 1);
 	identity_page(process->page_table, (void *)0x0, 0xfffff);
 	allocate_memory(process->page_table, (void *)PROCESS_CODE_BASE, length);
 	write_virtual_memory(process->page_table, code, (void *)PROCESS_CODE_BASE, length);
-//	print("allah");
-	//switch_memory_map(process->page_table);
-	//print(" akbar\n");
-	//jump_to_ring3(PROCESS_CODE_BASE);
-	//asm("JMP 0x18:0x600000"); //: : "a"(PROCESS_CODE_BASE));
-	//switch_memory_map(KERNEL_PID);
+	sti();
+}
+
+void exit_process(int result_code){
+	cli();
+	print("process with PID ");
+	print(itoa(current_process));
+	print(" exited with result code ");
+	print(itoa(result_code));
+	print("\n");
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	switch_memory_map(KERNEL_PAGE_TABLE);
+	free_page_table(process->page_table);
+	if(process->parent && process->parent->state == BLOCKED){
+		/*print("resuming parent process\n");*/
+		process->parent->state = WAITING;
+	}
+	//TODO clean other stuff up too lazy right now :(
+	remove_from_list(process_list, process);
+	process->state = EXITED;
+	current_process = -1;
+	sti_forced();
+
+	while(1) asm("hlt");
 }
 
 PID get_current_process(void){
@@ -357,4 +410,20 @@ PID get_current_process(void){
 
 int get_process_screen_index(PID process_index){
 	return ((process_descriptor *)get_list_element(process_list, process_index))->screen_index;
+}
+
+void execute_from_process(char *file_name){
+	cli();
+	char *_file_name = (char *)malloc(strlen(file_name) + 1);
+	strcpy(_file_name, file_name);
+	file_name = _file_name;
+	switch_memory_map(KERNEL_PAGE_TABLE);
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	process->state = BLOCKED;
+	process->quantum = 5;
+	execute(file_name, process->screen_index);
+	((process_descriptor *)get_list_element(process_list, process_list->length - 1))->parent = process;
+	sti_forced();
+	while(process->state == BLOCKED) 
+		asm("hlt");
 }

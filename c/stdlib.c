@@ -23,6 +23,10 @@ void init_heap(void){
 	return;
 }
 
+void exit(int result_code){
+	asm("int 0x40" : : "a"(EXIT), "d"(result_code));
+}
+
 void free(void *  heap_address){
 	heap_memory_structure *s = heap_address - sizeof(heap_memory_structure);
 	s->free = 1;

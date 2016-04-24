@@ -1,4 +1,5 @@
 #include "../headers/filesystem.h"
+#include "../headers/kernel.h"
 #include "../headers/ata.h"
 #include "../headers/heap.h"
 #include "../headers/screen.h"
@@ -116,8 +117,9 @@ FILE open(char *file_name){
 
 	for(inode_index = 0; inode_index<inode_count; ++inode_index){
 		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
-			//print(itoa((inode_list+inode_index)->name_address));
-			//print("\n");
+			/*print("kappa123 ");
+			print(file_names_list + (inode_list+inode_index)->name_address);
+			print("\n");*/
 			//print(((inode_list+inode_index)->name_address+file_names_list));
 			file->inode = (inode *)(inode_list+inode_index);
 			file->physical_address_block = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
@@ -320,6 +322,7 @@ void seek(FILE file_descriptor_index, int new_file_offset){
 }
 
 void execute(char *file_name, int screen_index){
+	cli();
 	print("executing ");
 	print(file_name);
 	print("\n");
@@ -329,7 +332,9 @@ void execute(char *file_name, int screen_index){
 	char *buff = (char *)malloc(current_file_descriptor->inode->size);
 	current_file_descriptor->file_offset = 0;
 	read(file_descriptor_index, buff, current_file_descriptor->inode->size);
+	close(file_descriptor_index);
 	create_process(buff, current_file_descriptor->inode->size, screen_index);
+	sti();
 //	asm("call eax" : : "a"(buff));
 }
 

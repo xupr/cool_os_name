@@ -24,6 +24,8 @@ int get_current_screen_index(void);
 void switch_screen(int new_screen_index);
 void print(char *str);
 void print_to_other_screen(char *str, int screen_index);
+void print_on(void);
+void print_off(void);
 void set_vga_colors(VGA_COLOR new_foreground, VGA_COLOR new_background);
 void scroll_lines(int count);
 void scroll_pages(int count);

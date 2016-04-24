@@ -3,8 +3,12 @@ KERNEL_SOURCE_FILES = $(wildcard kernel/*.c drivers/*.c utils/*.c kernel/*.asm d
 _KERNEL_OBJECT_FILES = ${KERNEL_SOURCE_FILES:.c=.o}
 KERNEL_OBJECT_FILES = ${_KERNEL_OBJECT_FILES:.asm=.o}
 
-C_LIB_SOURCE_FILES = $(wildcard c/*.c)
-C_LIB_OBJECT_FILES = ${C_LIB_SOURCE_FILES:.c=.o}
+C_LIB_SOURCE_FILES = $(wildcard c/*.c c/*.asm)
+_C_LIB_OBJECT_FILES = ${C_LIB_SOURCE_FILES:.c=.o}
+C_LIB_OBJECT_FILES = ${_C_LIB_OBJECT_FILES:.asm=.o}
+
+FS_SOURCE_FILES = $(wildcard default_fs/*.c)
+FS_OBJECT_FILES = ${FS_SOURCE_FILES:.c=.bin}
 
 all: os.img
 
@@ -19,6 +23,10 @@ os.img: kernel/kernel.bin bootloader/boot.bin
 kernel/kernel.bin: ${KERNEL_OBJECT_FILES}
 	i686-elf-ld -T kernel/kernel.ld $^ -o $@
 
+default_fs/%.bin: ${C_LIB_OBJECT_FILES} default_fs/%.o
+	i686-elf-ld -T proc.ld $^ -o $@
+	./add_file.o $@
+
 %.o: %.c
 	i686-elf-gcc -ffreestanding -masm=intel -c $< -o $@
 
@@ -28,13 +36,17 @@ kernel/kernel.bin: ${KERNEL_OBJECT_FILES}
 %.o: %.asm
 	nasm -f elf $< -o $@
 
-shell: ${C_LIB_OBJECT_FILES} proc_entry.o shell.o
-	i686-elf-ld -T proc.ld $^ -o shell.bin
+fs: 
+	gcc add_file.c -o add_file.o
 	dd if=asd of=os_copy.img
-	./add_file.o shell.bin shell.o
 	./add_file.o safta.txt safta.txt
+	make _fs
 	dd if=os_copy.img ibs=1M count=32 of=os.img
 	dd if=_os.img of=os.img bs=512 conv=notrunc
 
+
+_fs: ${FS_OBJECT_FILES}
+
 clean:
-	rm */*.o
+	find . -name "*.o" -type f -delete
+	find . -name "*.bin" -type f -delete

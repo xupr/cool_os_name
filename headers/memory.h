@@ -1,3 +1,5 @@
+#include "../headers/process.h"
+
 #define KERNEL_PAGE_TABLE 0
 
 typedef struct {
@@ -63,3 +65,5 @@ void switch_memory_map(PAGE_TABLE page_table_index);
 void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit);
 void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base, int limit);
 void identity_page(PAGE_TABLE page_table_index, void *base, int limit);
+void free_page_table(PAGE_TABLE page_table_index);
+void dump_memory_map(void);

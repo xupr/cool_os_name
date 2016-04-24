@@ -1,11 +1,16 @@
-#include "c/headers/stdlib.h"
-#include "c/headers/stdio.h"
-#include "c/headers/string.h"
+#include "../c/headers/stdlib.h"
+#include "../c/headers/stdio.h"
+#include "../c/headers/string.h"
 
 int main(void){
+	/*int i;
+	for(i = 0; i < 10000; ++i);*/
+	/*return 0;*/
+	/*while(1) print("");*/
 	char *write_file_commad = "write",
 	     *read_file_command = "read",
-	     *echo_command = "echo";
+	     *echo_command = "echo",
+	     *exit_command = "exit";
 	
 //	print(itoa((int)malloc(10)));
 //	print(itoa((int)malloc(10)));
@@ -64,6 +69,8 @@ int main(void){
 		}else if(!strcmp(command, echo_command)){
 			print(strtok(0, "\n"));
 			print("\n");
+		}else if(!strcmp(command, exit_command)){
+			break;
 		}	
 		//	print("i'm so fking happy right now!");
 	}

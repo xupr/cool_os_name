@@ -3,42 +3,72 @@ GLOBAL pit_interrupt_entry
 EXTERN pit_interrupt_handler
 EXTERN jump_to_ring3
 SECTION .text
-asd_pit_interrupt_entry:
-	PUSHA
-;	PUSHF
-	PUSH ESP
-	CALL pit_interrupt_handler
-	ADD ESP, 4
-	TEST EAX, EAX
-	JE exit_pit_interrupt_entry
-	MOV [save_eax], EAX
-	MOV EAX, [ESP + 44]
-	MOV [save_esp], EAX
-;	POPF
-	POPA
-	PUSH DWORD [save_esp]
-	PUSH DWORD [save_eax]
-	CALL jump_to_ring3
 
 pit_interrupt_entry:
+	MOV [save_eax], EAX
+	MOV EAX, [ESP + 4]
+	TEST EAX, 3
+	JNE no_need_to_pad_stack
+	SUB ESP, 8
+	MOV EAX, [ESP + 8]
+	MOV [ESP], EAX
+	MOV EAX, [ESP + 12]
+	MOV [ESP + 4], EAX
+	MOV EAX, [ESP + 16]
+	MOV [ESP + 8], EAX
+	MOV [ESP + 12], DWORD 0
+	MOV [ESP + 16], DWORD 0
+	MOV EAX, [save_eax]
+
+no_need_to_pad_stack:
 	PUSHA
 	PUSH ESP
 	CALL pit_interrupt_handler
 	ADD ESP, 4
 	MOV EAX, [ESP + 36] ;check if moving to a different ring
-	AND EAX, 3
-	TEST EAX, EAX
-	JE exit_pit_interrupt_entry
-	
+	TEST EAX, 3
+	JE clean_stack_padding
+
 	MOV AX, [ESP + 48]
 	MOV DS, AX
 	MOV ES, AX
 	MOV FS, AX
 	MOV GS, AX
 
-exit_pit_interrupt_entry:
-;	POPF
 	POPA
+	IRET
+
+clean_stack_padding:
+	POPA
+	MOV [save_eax], EAX
+	CMP DWORD [ESP + 12], 0
+	JE no_need_to_change_kernel_stack
+	MOV [save_esp], EBX
+	MOV EBX, [ESP + 12] 
+	
+	MOV EAX, [ESP]
+	MOV [EBX - 12], EAX
+	MOV EAX, [ESP + 4]
+	MOV [EBX - 8], EAX
+	MOV EAX, [ESP + 8]
+	MOV [EBX - 4], EAX
+	MOV ESP, EBX
+	SUB ESP, 12
+
+	MOV EBX, [save_esp]
+	MOV EAX, [save_eax]
+	IRET
+
+no_need_to_change_kernel_stack:
+	MOV EAX, [ESP + 8]
+	MOV [ESP + 16], EAX
+	MOV EAX, [ESP + 4]
+	MOV [ESP + 12], EAX
+	MOV EAX, [ESP]
+	MOV [ESP + 8], EAX
+	ADD ESP, 8
+
+	MOV EAX, [save_eax]
 	IRET
 
 SECTION .data

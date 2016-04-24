@@ -1,4 +1,5 @@
 //#include "../headers/scancode.h"
+#include "../headers/kernel.h"
 #include "../headers/screen.h"
 #include "../headers/interrupts.h"
 #include "../headers/keyboard.h"
@@ -25,6 +26,8 @@ void k_main(char *memory_map_length, void *memory_map){
 }
 
 void init(char *memory_map_length, void *memory_map){
+	cli();
+	print_off();
 	init_heap();
 	//print("kernel heap initialized\n");
 	init_screen();
@@ -45,7 +48,7 @@ void init(char *memory_map_length, void *memory_map){
 	print("file system initialized\n");
 	init_process();
 	print("process initialized\n");
-	print_to_other_screen("kappa123", 1);
+	/*print_to_other_screen("kappa123", 1);*/
 //	FILE shell = open("shell.o");
 //	write(shell, "123", 4);
 //	char buff[32];
@@ -70,7 +73,56 @@ void init(char *memory_map_length, void *memory_map){
 //	FILE safta = open("safta.o");
 	//execute("shell.o", 0);
 //	write(safta, "kappa123", 8);
+	int i;
+	for(i = 0; i < 4; ++i)
+		execute("login.bin", i);
 
+	/*PAGE_TABLE p = create_page_table();
+	identity_page(p, 0, 0x5fffff);
+	allocate_memory(p, 0x600000, 0x10000);
+	PAGE_TABLE p2 = create_page_table();
+	identity_page(p2, 0, 0x5fffff);
+	allocate_memory(p2, 0x600000, 0x10000);
+	free_page_table(p);
+	free_page_table(p2);
+	p = create_page_table();
+	identity_page(p, 0, 0x5fffff);
+	allocate_memory(p, 0x600000, 0x10000);
+	p2 = create_page_table();
+	identity_page(p2, 0, 0x5fffff);
+	allocate_memory(p2, 0x600000, 0x10000);
+	switch_memory_map(p);
+	switch_memory_map(p2);*/
+	/*PAGE_TABLE p = create_page_table();
+	print(itoa(p));
+	identity_page(p, 0, 0x5fffff);
+	allocate_memory(p, 0x600000, 0x200000);
+	free_page_table(p, 1);
+	p = create_page_table();
+	print(itoa(p));
+	identity_page(p, 0, 0x5fffff);
+	switch_memory_map(p);*/
 //	print("231\n");
+	sti();
 	return;	
+}
+
+static int mutex = 0;
+void cli(void){
+	asm("cli");
+	++mutex;
+}
+
+void sti(void){
+	asm("cli");
+	if(--mutex == 0){
+		asm("sti");
+		mutex = 0;
+	}
+}
+
+void sti_forced(void){
+	asm("cli");
+	mutex = 0;
+	asm("sti");
 }

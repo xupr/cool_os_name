@@ -1,4 +1,5 @@
 #include "../headers/memory.h"
+#include "../headers/kernel.h"
 #include "../headers/screen.h"
 #include "../headers/string.h"
 #include "../headers/list.h"
@@ -31,7 +32,7 @@ typedef struct {
 	char pinned;
 	void *base;
 	int limit;
-	PID process;
+	PAGE_TABLE page_table;
 } memory_page_block;
 
 typedef struct {
@@ -48,8 +49,28 @@ static list_node first_memory_page_map = {&first_page_block, 0};
 static list_node kernel_memory_page_map = {&kernel_pages, &first_memory_page_map};
 static list _memory_page_map = {&kernel_memory_page_map, 2};*/
 static list *memory_page_map;
+static print_shit = 0;
 
 static PAGE_TABLE kernel_page_table_index = 0;
+
+void dump_memory_map(void){
+	print_on();
+	print("\n");
+	list_node *current_memory_page_block_node = memory_page_map->first;
+	while(current_memory_page_block_node){
+		memory_page_block *current_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
+		print(itoa(current_memory_page_block->page_table));
+		print("     ");
+		print(itoa((int)current_memory_page_block->base));
+		print("     ");
+		print(itoa(current_memory_page_block->limit));
+		print("\n");
+
+		current_memory_page_block_node = current_memory_page_block_node->next;
+	}
+	print("\n");
+	print_off();
+}
 
 static int compare_memory_blocks(void *a, void *b){
 	unsigned int c = (unsigned int)(((memory_information_block *)a)->base), d = (unsigned int)(((memory_information_block *)b)->base);
@@ -90,19 +111,19 @@ void init_memory(char *memory_map_length, void *memory_map){
 				kernel_page_block->pinned = 1;
 				kernel_page_block->base = (void *)0x100000;
 				kernel_page_block->limit = 0x4FFFFF;
-				kernel_page_block->process = -1;
+				kernel_page_block->page_table = KERNEL_PAGE_TABLE;
 
 				page_block->bound = 0;
 				page_block->pinned = 0;
 				page_block->base = (void *)0x600000;
 				page_block->limit = (int)current_block->base + current_block->limit - 0x600000 - 1;
-				page_block->process = -1;
+				page_block->page_table = KERNEL_PAGE_TABLE;
 			}else{
 				page_block->bound = 0;
 				page_block->pinned = 0;
 				page_block->base = current_block->base;
 				page_block->limit = current_block->limit;
-				page_block->process = -1;
+				page_block->page_table = KERNEL_PAGE_TABLE;
 			}
 
 		}else{
@@ -110,7 +131,7 @@ void init_memory(char *memory_map_length, void *memory_map){
 			page_block->pinned = 1;
 			page_block->base = current_block->base;
 			page_block->limit = current_block->limit;
-			page_block->process = -1;
+			page_block->page_table = KERNEL_PAGE_TABLE;
 		}
 
 		add_to_list(memory_page_map, page_block);
@@ -180,16 +201,28 @@ void init_memory(char *memory_map_length, void *memory_map){
 }
 
 PAGE_TABLE create_page_table(){
+	cli();
+	print_on();
 	list_node *current = page_table_list->first;
 	char found = 0;
 	PAGE_TABLE page_table_index = 0;
 	page_table_descriptor *current_page_table_descriptor;
 	while(current != 0){
 		if(!((page_table_descriptor *)current->value)->bound){
-			found = 1;
+			if(page_table_index == 8)
+				++print_shit;
+					/*if(page_table_index == 5)
+						dump_memory_map();*/
+			((page_table_descriptor *)current->value)->bound = 1;
+			/*print(itoa(page_table_index));
+			print("\n");*/
+			print_off();
+			sti();
+			return (PAGE_TABLE)page_table_index;
+			/*found = 1;
 			((page_table_descriptor *)current->value)->bound = 1;
 			current_page_table_descriptor = (page_table_descriptor *)current->value;
-			break;
+			break;*/
 		}
 		
 		++page_table_index;
@@ -216,6 +249,7 @@ PAGE_TABLE create_page_table(){
 	int i;
 	page_directory_entry current_page_directory;
 	current_page_directory.ignored = 1;
+	current_page_directory.present = 0;
 	/*print(itoa((int)kernel_page_directory));
 	print("\n");
 	print(itoa((int)current_page_table_descriptor->page_table));
@@ -225,17 +259,26 @@ PAGE_TABLE create_page_table(){
 //	print(itoa((int)current_page_directory.ignored));
 //	print(itoa((int)(current_page_table_descriptor->page_table + 1)));
 //	print("kappa\n");
+			/*print("ATTENTION:");
+			print(itoa(page_table_index));*/
+	/*print(itoa(page_table_index));
+	print("\n");*/
+print_off();
+	sti();
 	return page_table_index; 
 	//for
 	//print(itoa((unsigned int)current_page_table_descriptor));
 }
 
 void switch_memory_map(PAGE_TABLE page_table_index){
+	cli();
 	page_table_descriptor *current_page_table_descriptor = get_list_element(page_table_list, (int)page_table_index);
 	asm("mov cr3, eax" : : "a"(current_page_table_descriptor->page_table));
+	sti();
 }
 
 void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
+	cli();
 	int pages = (limit + ((int)base)%PAGE_SIZE - 1)/PAGE_SIZE + 1;
 	int page_directories = (limit + ((int)base)%0x400000 - 1)/0x400000 + 1;
 	int i;
@@ -292,34 +335,32 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 					++index;
 					current_memory_page_block = current_memory_page_block->next;
 				}
-
-//				print(itoa(index));
-//				print("\n");
 				
 				if(index < memory_page_map->length){
 					void *page_address;
 					if(index != memory_page_map->length - 1 &&\
-					((memory_page_block *)(current_memory_page_block->next->value))->process == get_current_process()){
-						//print("safta1\n");
+					((memory_page_block *)(current_memory_page_block->next->value))->page_table == page_table_index){
+						/*print("safta1");*/
 						((memory_page_block *)current_memory_page_block->next->value)->base -= PAGE_SIZE;
 						page_address = ((memory_page_block *)current_memory_page_block->next->value)->base;
 						((memory_page_block *)current_memory_page_block->next->value)->limit += PAGE_SIZE;
 						((memory_page_block *)current_memory_page_block->value)->limit -= PAGE_SIZE;
 					}else if(index != 0 &&\
-					((memory_page_block *)get_list_element(memory_page_map, index - 1))->process == get_current_process()){
+					((memory_page_block *)get_list_element(memory_page_map, index - 1))->page_table == page_table_index){
 					//	memory_page_block *temp_page_block = (memory_page_block *)get_list_element(index - 1);
-						//print("safta2\n");
+						/*print("safta2");*/
 						((memory_page_block *)get_list_element(memory_page_map, index - 1))->limit += PAGE_SIZE;
 						page_address = ((memory_page_block *)current_memory_page_block->value)->base; 
 						((memory_page_block *)current_memory_page_block->value)->base += PAGE_SIZE;
 						((memory_page_block *)current_memory_page_block->value)->limit -= PAGE_SIZE;
 					}else{
+						/*print("safta3");*/
 						memory_page_block *temp_page_block = (memory_page_block *)malloc(sizeof(memory_page_block));
 						temp_page_block->bound = 1;
 						temp_page_block->pinned = 0;
 						temp_page_block->base = ((memory_page_block *)current_memory_page_block->value)->base;
 						temp_page_block->limit = PAGE_SIZE;
-						temp_page_block->process = get_current_process();
+						temp_page_block->page_table = page_table_index;
 						add_to_list_at(memory_page_map, temp_page_block, index);
 //						print(itoa(((memory_page_block *)get_list_element(memory_page_map, index))->process));
 //						print("\n");
@@ -327,9 +368,10 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 						((memory_page_block *)current_memory_page_block->value)->base += PAGE_SIZE;
 						((memory_page_block *)current_memory_page_block->value)->limit -= PAGE_SIZE;
 					}
+
 				
-					if(((memory_page_block *)current_memory_page_block->value)->limit < 0){
-						remove_from_list(memory_page_map, current_memory_page_block);
+					if(((memory_page_block *)current_memory_page_block->value)->limit <= 0){
+						remove_from_list(memory_page_map, current_memory_page_block->value);
 						free(current_memory_page_block);
 					}
 					
@@ -354,9 +396,11 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 		current_pages = 1024;
 		base = (void *)0;
 	}
+	sti();
 }
 
 void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base, int limit){	
+	cli();
 	int pages = (limit + ((int)base)%PAGE_SIZE - 1)/PAGE_SIZE + 1;
 	int page_directories = (limit + ((int)base)%0x400000 - 1)/0x400000 + 1;
 	page_directory_entry *current_page_directory = ((page_table_descriptor *)get_list_element(page_table_list, page_table_index))->page_table + ((int)base>>22);
@@ -371,10 +415,11 @@ void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base,
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12)) + (((int)base>>12) & 0x3FF);
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
-			//print(itoa(((current_page_table->physical_page)<<12)));
-			//print(itoa(*source));
+			/*print(itoa(((current_page_table->physical_page)<<12)));
+			print(itoa(*source));*/
 			memcpy((char *)((current_page_table->physical_page)<<12), source, (limit - 1)%PAGE_SIZE + 1);
-			//print(itoa(*(char *)((current_page_table->physical_page)<<12)));
+			/*print(itoa(*(char *)((current_page_table->physical_page)<<12)));*/
+			/*print_off();*/
 			limit -= PAGE_SIZE;
 			source += PAGE_SIZE;
 		}
@@ -382,9 +427,11 @@ void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base,
 		base = (void *)0;
 		current_pages = 1024;
 	}
+	sti();
 }
 
 void identity_page(PAGE_TABLE page_table_index, void *base, int limit){
+	cli();
 /*	void *base = (void *)KERNEL_BASE;
 	int limit = KERNEL_LIMIT;
 */	int pages = (limit + ((int)base)%PAGE_SIZE - 1)/PAGE_SIZE + 1;
@@ -445,4 +492,62 @@ void identity_page(PAGE_TABLE page_table_index, void *base, int limit){
 		current_pages = 1024;
 		base = (void *)0;
 	}
+	sti();
+}
+
+void free_page_table(PAGE_TABLE page_table_index){
+	cli();
+	page_table_descriptor *current_page_table_descriptor = (page_table_descriptor *)get_list_element(page_table_list, page_table_index);
+	int i, j;
+	page_table_entry empty_page_table;
+	empty_page_table.ignored = 1;
+	empty_page_table.present = 0;
+	for(i = 0; i < 1024; ++i){
+		page_directory_entry *current_page_directory = current_page_table_descriptor->page_table + i;
+		if(!current_page_directory->ignored){
+			for(j = 0; j < 1024; ++j){
+				page_table_entry *current_page_table = (page_table_entry *)(current_page_directory->page_table<<12) + j;
+				memcpy(current_page_table, &empty_page_table, sizeof(page_table_entry));
+			}	
+		}	
+	}
+
+	list_node *current_memory_page_block_node = memory_page_map->first;
+	memory_page_block *prev_memory_page_block = 0;
+	while(current_memory_page_block_node){
+		memory_page_block *current_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
+		
+		if(current_memory_page_block->page_table == page_table_index && (int)current_memory_page_block->base > 0x100000){
+			if(prev_memory_page_block && prev_memory_page_block->page_table == KERNEL_PAGE_TABLE){
+				prev_memory_page_block->limit += current_memory_page_block->limit;	
+				remove_from_list(memory_page_map, current_memory_page_block);
+				current_memory_page_block_node = current_memory_page_block_node->next;
+			}else if(current_memory_page_block_node->next){
+				memory_page_block *next_memory_page_block = (memory_page_block *)current_memory_page_block_node->next->value;
+				if(next_memory_page_block->page_table == KERNEL_PAGE_TABLE){
+					next_memory_page_block->limit += current_memory_page_block->limit;
+					next_memory_page_block->base = current_memory_page_block->base;
+					remove_from_list(memory_page_map, current_memory_page_block);
+					current_memory_page_block_node = current_memory_page_block_node->next->next;
+					prev_memory_page_block = (memory_page_block *)current_memory_page_block_node->next->value;
+				}else{
+					current_memory_page_block->bound = 0;
+					current_memory_page_block->page_table = KERNEL_PAGE_TABLE;
+					prev_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
+					current_memory_page_block_node = current_memory_page_block_node->next;
+				}
+			}else{
+				current_memory_page_block->bound = 0;
+				current_memory_page_block->page_table = KERNEL_PAGE_TABLE;
+				prev_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
+				current_memory_page_block_node = current_memory_page_block_node->next;
+			}
+		}else{	
+			prev_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
+			current_memory_page_block_node = current_memory_page_block_node->next;
+		}
+	}
+
+	current_page_table_descriptor->bound = 0;
+	sti();
 }

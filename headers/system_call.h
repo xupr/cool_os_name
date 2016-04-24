@@ -5,7 +5,9 @@ enum SYSTEM_CALL {
 	FOPEN,
 	FWRITE,
 	FREAD,
-	FCLOSE
+	FCLOSE,
+	EXIT,
+	EXECUTE
 };
 
 void init_system_call(void);

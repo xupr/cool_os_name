@@ -9,7 +9,7 @@ void *exception_interrupt_entry;
 void init_exception(void){
 	//print("hello world! time to get an exception");i
 //	print(itoa(exception_interrupt_entry));
-	create_IDT_descriptor(0xE, (int)&exception_interrupt_entry, 0x8, 0x8F);
+	create_IDT_descriptor(0xE, (int)&exception_interrupt_entry, 0x8, 0x8E);
 	print("--page faults initialized\n");
 }
 
