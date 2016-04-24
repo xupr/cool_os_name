@@ -1,6 +1,7 @@
 #include "../c/headers/stdlib.h"
 #include "../c/headers/stdio.h"
 #include "../c/headers/string.h"
+#include "../c/headers/os.h"
 
 int main(void){
 	/*int i;
@@ -10,7 +11,8 @@ int main(void){
 	char *write_file_commad = "write",
 	     *read_file_command = "read",
 	     *echo_command = "echo",
-	     *exit_command = "exit";
+	     *exit_command = "exit",
+	     *exec_command = "exec";
 	
 //	print(itoa((int)malloc(10)));
 //	print(itoa((int)malloc(10)));
@@ -71,6 +73,8 @@ int main(void){
 			print("\n");
 		}else if(!strcmp(command, exit_command)){
 			break;
+		}else if(!strcmp(command, exec_command)){
+			execute(strtok(0, "\n"));
 		}	
 		//	print("i'm so fking happy right now!");
 	}

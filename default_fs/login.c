@@ -1,6 +1,7 @@
 #include "../c/headers/stdlib.h"
 #include "../c/headers/stdio.h"
 #include "../c/headers/string.h"
+#include "../c/headers/os.h"
 
 int main(void){
 	char *username = "a";
@@ -13,7 +14,7 @@ int main(void){
 		print("password: ");
 		char input_password[32];
 		input(input_password, 32);
-		if(!strcmp(username, input_password) && !strcmp(password, input_password))
+		if(!strcmp(username, strtok(input_password, "\n")) && !strcmp(password, strtok(input_password, "\n")))
 			execute("shell.bin");
 		else
 			print("wrong\n");

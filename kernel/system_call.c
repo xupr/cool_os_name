@@ -71,6 +71,11 @@ void *system_call_interrupt(void){
 			char *file_name;
 			asm("" : "=d"(file_name));
 			execute_from_process(file_name);
+			break;
+
+		case DUMP_MEMORY_MAP:
+			dump_memory_map();
+			break;
 
 	}
 

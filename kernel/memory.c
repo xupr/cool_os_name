@@ -56,11 +56,12 @@ static PAGE_TABLE kernel_page_table_index = 0;
 void dump_memory_map(void){
 	print_on();
 	print("\n");
+	print("page table     base        limit\n");
 	list_node *current_memory_page_block_node = memory_page_map->first;
 	while(current_memory_page_block_node){
 		memory_page_block *current_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
 		print(itoa(current_memory_page_block->page_table));
-		print("     ");
+		print("              ");
 		print(itoa((int)current_memory_page_block->base));
 		print("     ");
 		print(itoa(current_memory_page_block->limit));

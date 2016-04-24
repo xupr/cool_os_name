@@ -7,7 +7,8 @@ enum SYSTEM_CALL {
 	FREAD,
 	FCLOSE,
 	EXIT,
-	EXECUTE
+	EXECUTE,
+	DUMP_MEMORY_MAP
 };
 
 void init_system_call(void);

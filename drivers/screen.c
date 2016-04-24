@@ -35,6 +35,7 @@ void set_cursor(short address);
 typedef struct{
 	char *screen;
 	int cursor_offset;
+	int scroll;
 } screen_descriptor;
 
 static VGA_COLOR foreground = WHITE;
@@ -85,6 +86,7 @@ void init_screen(void){
 		screen_descriptor *sd = (screen_descriptor *)malloc(sizeof(screen_descriptor));
 		sd->screen = (char *)malloc(SCREEN_SIZE);
 		sd->cursor_offset = 0;
+		sd->scroll = 0;
 		memset(sd->screen, 0, SCREEN_SIZE);
 		add_to_list(screen_list, sd);
 	}
@@ -92,13 +94,18 @@ void init_screen(void){
 }
 
 void switch_screen(int new_screen_index){
+	cli();
 	screen_descriptor *current_sd = (screen_descriptor *)get_list_element(screen_list, current_screen_index);
+	screen_descriptor *new_sd = (screen_descriptor *)get_list_element(screen_list, new_screen_index);
 	memcpy(current_sd->screen, (char *)SCREEN, SCREEN_SIZE);
 	current_sd->cursor_offset = get_cursor();
-	screen_descriptor *new_sd = (screen_descriptor *)get_list_element(screen_list, new_screen_index);
 	memcpy((char *)SCREEN, new_sd->screen, SCREEN_SIZE);
 	current_screen_index = new_screen_index;
+	int scroll = new_sd->scroll - current_sd->scroll;
+	scroll_lines(scroll);
+	new_sd->scroll -= scroll;
 	set_cursor(new_sd->cursor_offset);
+	sti();
 }
 
 void set_vga_colors(VGA_COLOR new_foreground, VGA_COLOR new_background){
@@ -119,6 +126,8 @@ unsigned short get_start_address(){
 }
 
 void scroll_lines(int count){
+	screen_descriptor *current_sd = (screen_descriptor *)get_list_element(screen_list, current_screen_index);
+	current_sd->scroll += count;
 	unsigned short offset = get_start_address() + count*COLUMNS;
 	if(offset < 0)
 		offset = 0;
@@ -131,6 +140,8 @@ void scroll_lines(int count){
 }
 
 void scroll_pages(int count){
+	screen_descriptor *current_sd = (screen_descriptor *)get_list_element(screen_list, current_screen_index);
+	current_sd->scroll += count*ROWS;
 	unsigned short offset = get_start_address() + count*ROWS*COLUMNS;
 	if(offset < 0)
 		offset = 0;
@@ -187,6 +198,9 @@ void print_to_other_screen(char *str, int screen_index){
 	}
 	screen_descriptor *sd = get_list_element(screen_list, screen_index);
 	unsigned char *screen = (unsigned char *)sd->screen + 2*sd->cursor_offset;
+	int offset = (((int)screen - (int)sd->screen)/2 + strlen(str))/COLUMNS - sd->scroll - ROWS;
+	if(offset > 0)
+		sd->scroll += offset;
 	char color = foreground + (background<<4);
 	while(*str != '\0'){
 		if(*str == '\n'){
@@ -214,9 +228,9 @@ void print_to_other_screen(char *str, int screen_index){
 	//set_cursor(((int)screen - (int)SCREEN)/2);
 	/*unsigned short offset = get_start_address();
 	if(offset + ROWS*COLUMNS < ((int)screen - (int)SCREEN)/2)
-		scroll_lines((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
+		sd->scroll += ((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
 	else if(offset > ((int)screen - (int)SCREEN)/2)
-		scroll_lines((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);*/
+		sd->scroll += ((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);*/
 }
 
 void print_on(void){
