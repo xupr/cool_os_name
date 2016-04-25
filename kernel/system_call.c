@@ -19,6 +19,7 @@ void *system_call_interrupt(void){
 	int length;
 	static void *heap;
 	static FILE fd;
+	static int bytes;
 	switch(system_call_name){
 		case PRINT:
 			asm("" : "=d"(str));
@@ -34,12 +35,13 @@ void *system_call_interrupt(void){
 
 		case HEAP_START:
 			heap = get_heap_start(get_current_process()); 
-			return (void *)&heap;
+			return &heap;
 			break;
 		
-		case FOPEN:
-			asm("" : "=d"(str));
-			fd = fopen(str);
+		case FOPEN:;
+			char *mode;
+			asm("" : "=b"(mode), "=d"(str));
+			fd = fopen(str, mode);
 			return &fd;
 		//	asm("pop eax;popa");
 		//	asm("" : : "a"(fd));
@@ -48,12 +50,14 @@ void *system_call_interrupt(void){
 
 		case FWRITE:
 			asm("" : "=c"(length), "=d"(str), "=b"(fd));
-			fwrite(str, length, fd);
+			bytes = fwrite(str, length, fd);
+			return &bytes;
 			break;
 
 		case FREAD:
 			asm("" : "=c"(length), "=d"(str), "=b"(fd));
-			fread(str, length, fd);
+			bytes = fread(str, length, fd);
+			return &bytes;
 			break;
 
 		case FCLOSE:
@@ -67,16 +71,30 @@ void *system_call_interrupt(void){
 			exit_process(status_code);
 			break;
 
-		case EXECUTE:;
-			char *file_name;
-			asm("" : "=d"(file_name));
-			execute_from_process(file_name);
+		case EXECUTE:
+			asm("" : "=d"(str));
+			execute_from_process(str);
 			break;
 
 		case DUMP_MEMORY_MAP:
 			dump_memory_map();
 			break;
+			
+		case DUMP_PROCESS_LIST:
+			dump_process_list();
+			break;
 
+		case GET_FILE_SIZE:
+			asm("" : "=d"(str));
+			bytes = get_file_size(str);
+			return &bytes;
+			break;
+
+		case SETEUID:;
+			int new_euid;
+			asm("" : "=b"(new_euid));
+			bytes = seteuid(new_euid);
+			return &bytes;
 	}
 
 	return 0;

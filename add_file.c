@@ -17,6 +17,7 @@
 typedef struct {
 	unsigned char bound;
 	unsigned short access;
+	unsigned int creator_uid;
 	unsigned int size;
 	unsigned int address_block;
 	unsigned short name_address;
@@ -70,6 +71,11 @@ int main(int argc, char *argv[]){
 		_prev = inserted_file_name;	
 	inserted_file_name = _prev;
 
+	char *_inserted_file_name = (char *)malloc(strlen(inserted_file_name) + 1);
+	strcpy(_inserted_file_name, inserted_file_name);
+	char *extension = strtok(_inserted_file_name, ".");
+	extension = strtok(NULL, ".");
+
 	struct stat *stat_buff = (struct stat *)malloc(sizeof(struct stat));
 	stat(file_name, stat_buff);
 	int file_size = stat_buff->st_size;
@@ -87,7 +93,11 @@ int main(int argc, char *argv[]){
 	}
 	inode *current_inode = inode_list_buff+i;
 	current_inode->bound = 1;
-	current_inode->access = 0700;
+	if(!strcmp(extension, "bin"))
+		current_inode->access = 0777;
+	else
+		current_inode->access = 0700;
+	current_inode->creator_uid = 0;
 	current_inode->size = file_size;
 
 	fseek(fd, FILE_NAME_LIST_OFFSET, SEEK_SET);

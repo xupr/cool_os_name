@@ -56,19 +56,21 @@ static PAGE_TABLE kernel_page_table_index = 0;
 void dump_memory_map(void){
 	print_on();
 	print("\n");
-	print("page table     base        limit\n");
+	set_tab_size(12);
+	print("page table\tbase\tlimit\n");
 	list_node *current_memory_page_block_node = memory_page_map->first;
 	while(current_memory_page_block_node){
 		memory_page_block *current_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
 		print(itoa(current_memory_page_block->page_table));
-		print("              ");
+		print("\t");
 		print(itoa((int)current_memory_page_block->base));
-		print("     ");
+		print("\t");
 		print(itoa(current_memory_page_block->limit));
 		print("\n");
 
 		current_memory_page_block_node = current_memory_page_block_node->next;
 	}
+	set_tab_size(8);
 	print("\n");
 	print_off();
 }

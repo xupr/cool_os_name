@@ -8,7 +8,10 @@ enum SYSTEM_CALL {
 	FCLOSE,
 	EXIT,
 	EXECUTE,
-	DUMP_MEMORY_MAP
+	DUMP_MEMORY_MAP,
+	DUMP_PROCESS_LIST,
+	GET_FILE_SIZE,
+	SETEUID
 };
 
 void init_system_call(void);

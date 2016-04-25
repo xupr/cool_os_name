@@ -39,6 +39,7 @@ default_fs/%.bin: ${C_LIB_OBJECT_FILES} default_fs/%.o
 fs: 
 	gcc add_file.c -o add_file.o
 	dd if=asd of=os_copy.img
+	$(foreach file, $(wildcard default_fs/*.txt), ./add_file.o ${file} ${file};)
 	./add_file.o safta.txt safta.txt
 	make _fs
 	dd if=os_copy.img ibs=1M count=32 of=os.img

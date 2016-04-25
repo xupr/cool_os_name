@@ -57,17 +57,22 @@ int main(void){
 			char *file_name = strtok(0, " \n"),
 			     *data = strtok(0, "\n");
 			//print(file_name);
-			FILE fd = fopen(file_name);
-//			print(itoa(fd));
-			fwrite(data, strlen(data) + 1, fd);
-			fclose(fd);
+			FILE fd = fopen(file_name, "w");
+			if(fd != -1){
+				fwrite(data, strlen(data) + 1, fd);
+				fclose(fd);
+			}else
+				print("no premisions\n");
 		}else if(!strcmp(command, read_file_command)){
 			char *file_name = strtok(0, " \n");
-			FILE fd = fopen(file_name);
-			fread(out, 1024, fd);
-			print(out);
-			print("\n");
-			fclose(fd);
+			FILE fd = fopen(file_name, "r");
+			if(fd != -1){
+				fread(out, 1024, fd);
+				print(out);
+				print("\n");
+				fclose(fd);
+			}else
+				print("no premisions\n");
 		}else if(!strcmp(command, echo_command)){
 			print(strtok(0, "\n"));
 			print("\n");

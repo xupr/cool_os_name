@@ -43,9 +43,14 @@ static VGA_COLOR background = GREEN;
 static list *screen_list;
 static int current_screen_index = 0;
 static int to_print = 1;
+static int tab_size = 8;
 
 int get_current_screen_index(void){
 	return current_screen_index;
+}
+
+void set_tab_size(int new_tab_size){
+	tab_size = new_tab_size;
 }
 
 void init_screen(void){
@@ -156,6 +161,7 @@ void scroll_pages(int count){
 void print(char *str){
 	if(!to_print)
 		return;
+	cli();
 	unsigned char *screen = (unsigned char *)SCREEN + 2*get_cursor();
 	char color = foreground + (background<<4);
 	while(*str != '\0'){
@@ -165,6 +171,9 @@ void print(char *str){
 		}else if(*str == '\b'){
 			*--screen = '\0';
 			*--screen = '\0';
+			++str;
+		}else if(*str == '\t'){
+			screen += (tab_size - ((((int)screen - (int)SCREEN)/2)%COLUMNS)%tab_size)*2;
 			++str;
 		}else{
 			*screen++ = *str++;
@@ -186,6 +195,7 @@ void print(char *str){
 		scroll_lines((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
 	else if(offset > ((int)screen - (int)SCREEN)/2)
 		scroll_lines((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);
+	sti();
 }
 
 void print_to_other_screen(char *str, int screen_index){
@@ -196,6 +206,7 @@ void print_to_other_screen(char *str, int screen_index){
 		print(str);
 		return;
 	}
+	cli();
 	screen_descriptor *sd = get_list_element(screen_list, screen_index);
 	unsigned char *screen = (unsigned char *)sd->screen + 2*sd->cursor_offset;
 	int offset = (((int)screen - (int)sd->screen)/2 + strlen(str))/COLUMNS - sd->scroll - ROWS;
@@ -204,11 +215,14 @@ void print_to_other_screen(char *str, int screen_index){
 	char color = foreground + (background<<4);
 	while(*str != '\0'){
 		if(*str == '\n'){
-			screen += 2*(COLUMNS-(((int)screen - (int)SCREEN)/2)%COLUMNS);
+			screen += 2*(COLUMNS-(((int)screen - (int)sd->screen)/2)%COLUMNS);
 			++str;
 		}else if(*str == '\b'){
 			*--screen = '\0';
 			*--screen = '\0';
+			++str;
+		}else if(*str == '\t'){
+			*screen += (tab_size - ((((int)screen - (int)sd->screen)/2)%COLUMNS)%tab_size)*2;
 			++str;
 		}else{
 			*screen++ = *str++;
@@ -231,6 +245,7 @@ void print_to_other_screen(char *str, int screen_index){
 		sd->scroll += ((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
 	else if(offset > ((int)screen - (int)SCREEN)/2)
 		sd->scroll += ((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);*/
+	sti();
 }
 
 void print_on(void){

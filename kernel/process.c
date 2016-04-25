@@ -1,3 +1,4 @@
+//REMINDER: kernel stacks may overflow to the heap.
 #include "../headers/process.h"
 #include "../headers/kernel.h"
 #include "../headers/memory.h"
@@ -15,6 +16,17 @@
 
 #define PIT_COMMAND_REGISTER 0x43
 #define PIT_CHANNEL0_DATA_PORT 0x40
+
+typedef struct {
+	unsigned char bound;
+	unsigned short access;
+	unsigned int creator_uid;
+	unsigned int size;
+	unsigned int address_block;
+	unsigned short name_address;
+	unsigned int creation_date;
+	unsigned int update_date;
+} inode;
 
 typedef enum{
 	CREATED,
@@ -42,6 +54,7 @@ typedef struct{
 } registers;
 
 typedef struct _process_descriptor{
+	char *image_name;
 	PAGE_TABLE page_table;
 	void *heap_start;
 	list *open_files;
@@ -51,12 +64,16 @@ typedef struct _process_descriptor{
 	int kernel_stack;
 	registers *regs;
 	struct _process_descriptor *parent;
+	int ruid;
+	int euid;
 } process_descriptor;
 
 typedef struct{
 	int used;
 	FILE fd;
 	int file_offset;
+	char read;
+	char write;
 } open_file;
 
 typedef struct{
@@ -76,6 +93,58 @@ static int current_process = -1;
 extern void jump_to_ring3(int offset);
 static int screen_index_for_shell = 0;
 static int exited_process = 0;
+
+void dump_process_list(void){
+	cli();
+	list_node *current_process_descriptor_node = process_list->first;
+	int pid = 0;
+	print("\n");
+	print("PID\timage name");
+	set_tab_size(12);
+	print("\t");
+	set_tab_size(8);
+	print("state\tquantum\tscreen\tkernel stack\tpage table\n");
+	while(current_process_descriptor_node){
+		process_descriptor *current_process_descriptor = (process_descriptor *)current_process_descriptor_node->value;
+		char *image_name = (char *)malloc(strlen(current_process_descriptor->image_name) + 1);
+		strcpy(image_name, current_process_descriptor->image_name);
+		print(itoa(pid));
+		print("\t");
+		print(strtok(image_name, "."));
+		set_tab_size(12);
+		print("\t");
+		set_tab_size(8);
+		switch(current_process_descriptor->state){
+			case CREATED:
+				print("CREATED");
+				break;
+			case RUNNING:
+				print("RUNNING");
+				break;
+			case WAITING:
+				print("WAITING");
+				break;
+			case BLOCKED:
+				print("BLOCKED");
+				break;
+		}
+		print("\t");
+		print(itoa(current_process_descriptor->quantum));
+		print("\t");
+		print(itoa(current_process_descriptor->screen_index));
+		print("\t");
+		print(itoa(current_process_descriptor->kernel_stack));
+		print("\t\t");
+		print(itoa(current_process_descriptor->page_table));
+		print("\n");
+		free(image_name);
+
+		current_process_descriptor_node = current_process_descriptor_node->next;
+		++pid;
+	}
+	print("\n");
+	sti();
+}
 
 void switch_kernel_stack(int new_kernel_stack){
 	*(int *)(tss + 4) = new_kernel_stack;
@@ -178,7 +247,7 @@ void switch_process(PID new_process_index, registers *regs){
 		print("\n");
 		current_process = new_process_index;
 		new_process->state = RUNNING;
-		new_process->quantum = 1;
+		new_process->quantum = 5;
 		new_process->regs = (registers *)malloc(sizeof(registers));
 		regs->esp = 0x9FFFFF;
 		regs->cs = 0x1B;
@@ -202,7 +271,7 @@ void switch_process(PID new_process_index, registers *regs){
 	if(new_process->state == WAITING){
 		current_process = new_process_index;
 		new_process->state = RUNNING;
-		new_process->quantum = 1;
+		new_process->quantum = 5;
 		memcpy(regs, new_process->regs, sizeof(registers));
 		if((regs->cs & 3) == 0)
 			regs->esp = new_process->kernel_stack; 
@@ -227,9 +296,11 @@ void pit_interrupt_handler(registers *regs){
 	}
 
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
-	if(--process->quantum < 1 || process->state == BLOCKED){
+	PID process_to_run = find_process_to_run();
+	if(process_to_run != current_process && (--process->quantum < 1 || process->state == BLOCKED)){
 		memcpy(process->regs, regs, sizeof(registers));
 		process->kernel_stack = (int)(regs+1);
+		process->quantum = 0;
 		if(process->state == RUNNING)
 			process->state = WAITING;
 
@@ -243,10 +314,26 @@ void pit_interrupt_handler(registers *regs){
 	return;
 }
 
-FILE fopen(char *file_name){
-	FILE fd = open(file_name);
+FILE fopen(char *file_name, char *mode){
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	inode *current_inode = (inode *)malloc(sizeof(inode)); 
+	get_inode(file_name, current_inode);
+	if(process->euid && current_inode->bound != 255){
+		short relevant_access_bits;
+		if(process->euid == current_inode->creator_uid)
+			relevant_access_bits = (current_inode->access>>6);
+		else
+			relevant_access_bits = (current_inode->access&7);
+
+		if(!strcmp(mode, "r") && !(relevant_access_bits&4))
+			return -1;
+		if(!strcmp(mode, "w") && !(relevant_access_bits&2))
+			return -1;
+		if(!strcmp(mode, "r+") && (!(relevant_access_bits&2) || !(relevant_access_bits&4)))
+			return -1;
+	}
 	
+	FILE fd = open(file_name);
 	list_node *current_open_file_node = process->open_files->first;
 	FILE vfd = 0;
 	while(current_open_file_node){
@@ -267,13 +354,27 @@ FILE fopen(char *file_name){
 
 	file->fd = fd;
 	file->file_offset = 0;
+	if(!strcmp(mode, "r")){
+		file->read = 1;
+		file->write = 0;
+	}else if(!strcmp(mode, "w")){
+		file->read = 0;
+		file->write = 1;
+	}else if(!strcmp(mode, "r+")){
+		file->read = 1;
+		file->write = 1;
+	}
 	add_to_list(process->open_files, file);
 	return vfd;
 }
 
 int fread(char *buff, int count, FILE fd){
+	if(fd == -1)
+		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	open_file *file = get_list_element(process->open_files, fd);
+	if(!file->read)
+		return -1;
 	seek(file->fd, file->file_offset);
 	int bytes_read = read(file->fd, buff, count);
 	file->file_offset += bytes_read;
@@ -281,8 +382,12 @@ int fread(char *buff, int count, FILE fd){
 }
 
 int fwrite(char *buff, int count, FILE fd){
+	if(fd == -1)
+		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	open_file *file = get_list_element(process->open_files, fd);
+	if(!file->write)
+		return -1;
 	seek(file->fd, file->file_offset);
 	int bytes_written = write(file->fd, buff, count);
 	file->file_offset += bytes_written;
@@ -290,6 +395,8 @@ int fwrite(char *buff, int count, FILE fd){
 }
 
 void fclose(FILE fd){
+	if(fd == -1)
+		return;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	open_file *file = get_list_element(process->open_files, fd);
 	
@@ -357,10 +464,12 @@ void *get_heap_start(PID process_index){
 	return ((process_descriptor *)get_list_element(process_list, process_index))->heap_start;
 }
 
-void create_process(char *code, int length, int screen_index){
+void create_process(char *code, int length, int screen_index, char *file_name){
 	cli();
 	/*print(itoa(*code));*/
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor));
+	process->image_name = (char *)malloc(strlen(file_name) + 1);
+	strcpy(process->image_name, file_name);
 	process->page_table = create_page_table();
 	//print(itoa(process->page_table));
 	process->heap_start = (void *)(PROCESS_CODE_BASE + length);
@@ -369,6 +478,8 @@ void create_process(char *code, int length, int screen_index){
 	process->screen_index = screen_index;
 	process->kernel_stack = free_kernel_stack;
 	process->parent = 0;
+	process->ruid = 0;
+	process->euid = 0;
 	free_kernel_stack -= 0x10000;
 	add_to_list(process_list, process);
 	/*PID _current_process = current_process;
@@ -419,11 +530,42 @@ void execute_from_process(char *file_name){
 	file_name = _file_name;
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	inode *current_inode = (inode *)malloc(sizeof(inode)); 
+	get_inode(file_name, current_inode);
+	if(process->euid && current_inode->bound != 255){
+		short relevant_access_bits;
+		if(process->euid == current_inode->creator_uid)
+			relevant_access_bits = (current_inode->access>>6);
+		else
+			relevant_access_bits = (current_inode->access&7);
+		
+		if(!relevant_access_bits&1){
+			sti();
+			return;
+		}
+	}
 	process->state = BLOCKED;
-	process->quantum = 5;
 	execute(file_name, process->screen_index);
-	((process_descriptor *)get_list_element(process_list, process_list->length - 1))->parent = process;
+	process_descriptor *created_process = (process_descriptor *)get_list_element(process_list, process_list->length - 1);
+	created_process->parent = process;
+	created_process->ruid = process->euid;
+	created_process->euid = process->euid;
 	sti_forced();
 	while(process->state == BLOCKED) 
 		asm("hlt");
+}
+
+int seteuid(int new_euid){
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(process->ruid == 0){
+		process->euid = new_euid;
+		return 0;
+	}
+
+	return -1;
+}
+
+int get_current_euid(void){
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	return process->euid;
 }

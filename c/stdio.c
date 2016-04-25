@@ -14,22 +14,22 @@ void input(char *str, int length){
 	asm("popa");
 }
 
-FILE fopen(char *file_name){
+FILE fopen(char *file_name, char *mode){
 	FILE fd;
-	asm("int 0x40" : "=a"(fd) : "a"(FOPEN), "d"(file_name));	
+	asm("int 0x40" : "=a"(fd) : "a"(FOPEN), "b"(mode), "d"(file_name));	
 	return fd;
 }
 
-void fwrite(char *buff, int length, FILE fd){
-	asm("pusha");
-	asm("int 0x40" : : "a"(FWRITE), "b"(fd), "d"(buff), "c"(length));
-	asm("popa");
+int fwrite(char *buff, int length, FILE fd){
+	int bytes;
+	asm("int 0x40" : "=a"(bytes): "a"(FWRITE), "b"(fd), "d"(buff), "c"(length));
+	return bytes;
 }
 
-void fread(char *buff, int length, FILE fd){
-	asm("pusha");
-	asm("int 0x40" : : "a"(FREAD), "b"(fd), "d"(buff), "c"(length));
-	asm("popa");
+int fread(char *buff, int length, FILE fd){
+	int bytes;
+	asm("int 0x40" : "=a"(bytes) : "a"(FREAD), "b"(fd), "d"(buff), "c"(length));
+	return bytes;
 }
 
 void fclose(FILE fd){

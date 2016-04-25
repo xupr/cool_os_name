@@ -17,6 +17,7 @@
 typedef struct {
 	unsigned char bound;
 	unsigned short access;
+	unsigned int creator_uid;
 	unsigned int size;
 	unsigned int address_block;
 	unsigned short name_address;
@@ -78,6 +79,29 @@ void init_filesystem(void){
 	file_names_list = (unsigned char *)malloc(BLOCK_SIZE*SECTOR_SIZE*sizeof(unsigned char));
 	ata_read_sectors(FILE_NAMES_LIST, BLOCK_SIZE, file_names_list);
 	open_files_list = create_list();
+}
+
+void get_inode(char *file_name, void *buff){
+	int inode_index;
+	for(inode_index = 0; inode_index<inode_count; ++inode_index){
+		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
+			memcpy(buff, inode_list + inode_index, sizeof(inode));
+			return;
+		}
+	}
+
+	*(char *)buff = -1;
+}
+
+int get_file_size(char *file_name){
+	int inode_index;
+	for(inode_index = 0; inode_index<inode_count; ++inode_index){
+		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
+			return (inode_list + inode_index)->size;
+		}
+	}
+
+	return -1;
 }
 
 FILE open(char *file_name){
@@ -153,6 +177,7 @@ FILE open(char *file_name){
 			ata_write_sectors(FILE_NAMES_LIST, BLOCK_SIZE, file_names_list);
 			file_node->creation_date = 0;
 			file_node->update_date = 0;
+			file_node->creator_uid = get_current_euid();
 			ata_write_sectors(INODE_LIST, BLOCK_SIZE, (char *)inode_list);
 			//print("4");
 
@@ -333,7 +358,7 @@ void execute(char *file_name, int screen_index){
 	current_file_descriptor->file_offset = 0;
 	read(file_descriptor_index, buff, current_file_descriptor->inode->size);
 	close(file_descriptor_index);
-	create_process(buff, current_file_descriptor->inode->size, screen_index);
+	create_process(buff, current_file_descriptor->inode->size, screen_index, file_name);
 	sti();
 //	asm("call eax" : : "a"(buff));
 }

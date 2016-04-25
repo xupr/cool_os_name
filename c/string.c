@@ -59,10 +59,6 @@ char *strtok(char *str, char *separators){
 			}
 		}
 	}
-	
-	--current_str;
-	if(*str)
-		return str;
 
 	return 0;
 }

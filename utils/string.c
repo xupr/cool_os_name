@@ -45,7 +45,6 @@ int strlen(char *str){
 }
 
 char *strtok(char *str, char *separators){
-	print(str);
 	static char *current_str;
 	if(str)
 		current_str = str;
