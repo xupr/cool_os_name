@@ -13,12 +13,10 @@ FS_OBJECT_FILES = ${FS_SOURCE_FILES:.c=.bin}
 all: os.img
 
 os.img: kernel/kernel.bin bootloader/boot.bin
-	dd if=bootloader/boot.bin of=_os.img bs=512
-	dd if=kernel/kernel.bin of=_os.img bs=512 oflag=append conv=notrunc
-#	dd if=demo_file
-	dd if=os_copy.img ibs=1M count=32 of=os.img
-	dd if=_os.img of=os.img bs=512 conv=notrunc
-#	dd if=safta.txt of=hd.img bs=512 conv=notrunc
+	dd if=/dev/zero of=os.img bs=32M count=1
+	dd if=bootloader/boot.bin of=os.img bs=512 conv=notrunc
+	dd if=kernel/kernel.bin of=os.img seek=1 bs=512 conv=notrunc
+	make fs
 
 kernel/kernel.bin: ${KERNEL_OBJECT_FILES}
 	i686-elf-ld -T kernel/kernel.ld $^ -o $@
@@ -37,13 +35,14 @@ default_fs/%.bin: ${C_LIB_OBJECT_FILES} default_fs/%.o
 	nasm -f elf $< -o $@
 
 fs: 
+	rm -rf default_fs/*.bin
+	rm -rf default_fs/*.o
 	gcc add_file.c -o add_file.o
-	dd if=asd of=os_copy.img
+	dd if=/dev/zero of=os.img bs=1M count=31 seek=1 conv=notrunc
+	printf '\x7' | dd of=os.img bs=1 seek=17825792 conv=notrunc 
 	$(foreach file, $(wildcard default_fs/*.txt), ./add_file.o ${file} ${file};)
 	./add_file.o safta.txt safta.txt
 	make _fs
-	dd if=os_copy.img ibs=1M count=32 of=os.img
-	dd if=_os.img of=os.img bs=512 conv=notrunc
 
 
 _fs: ${FS_OBJECT_FILES}

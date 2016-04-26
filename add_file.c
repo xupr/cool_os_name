@@ -80,7 +80,7 @@ int main(int argc, char *argv[]){
 	stat(file_name, stat_buff);
 	int file_size = stat_buff->st_size;
 	printf("%s, %d\n", file_name, file_size);
-	FILE *fd = fopen("./os_copy.img", "r+");
+	FILE *fd = fopen("./os.img", "r+");
 	
 	fseek(fd, INODE_LIST_OFFSET, SEEK_SET);
 	inode *inode_list_buff = (inode *)malloc(BLOCK_SIZE);
