@@ -52,6 +52,8 @@ int main(void){
 		input(str, 1024);
 //		print("got my input");	
 		char *command = strtok(str, " \n");
+		if(!command)
+			continue;
 		if(!strcmp(command, write_file_commad)){
 			//print("holy");
 			char *file_name = strtok(0, " \n"),

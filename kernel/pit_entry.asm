@@ -18,9 +18,9 @@ pit_interrupt_entry:
 	MOV [ESP + 8], EAX
 	MOV [ESP + 12], DWORD 0
 	MOV [ESP + 16], DWORD 0
-	MOV EAX, [save_eax]
 
 no_need_to_pad_stack:
+	MOV EAX, [save_eax]
 	PUSHA
 	PUSH ESP
 	CALL pit_interrupt_handler

@@ -41,7 +41,6 @@ fs:
 	dd if=/dev/zero of=os.img bs=1M count=31 seek=1 conv=notrunc
 	printf '\x7' | dd of=os.img bs=1 seek=17825792 conv=notrunc 
 	$(foreach file, $(wildcard default_fs/*.txt), ./add_file.o ${file} ${file};)
-	./add_file.o safta.txt safta.txt
 	make _fs
 
 
