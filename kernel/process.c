@@ -245,14 +245,15 @@ void switch_process(PID new_process_index, registers *regs){
 		print("running created process with PID ");
 		print(itoa(new_process_index));
 		print("\n");
+		memcpy(regs, new_process->regs, sizeof(registers));
 		current_process = new_process_index;
 		new_process->state = RUNNING;
 		new_process->quantum = 5;
-		new_process->regs = (registers *)malloc(sizeof(registers));
+		/*new_process->regs = (registers *)malloc(sizeof(registers));
 		regs->esp = 0x9FFFFF;
 		regs->cs = 0x1B;
 		regs->ss = 0x23;
-		regs->eip = PROCESS_CODE_BASE;
+		regs->eip = PROCESS_CODE_BASE;*/
 		//print(itoa(regs->eflags));
 		switch_kernel_stack(new_process->kernel_stack);
 		/*print(itoa(new_process->page_table));*/
@@ -464,13 +465,18 @@ void *get_heap_start(PID process_index){
 	return ((process_descriptor *)get_list_element(process_list, process_index))->heap_start;
 }
 
-void create_process(char *code, int length, int screen_index, char *file_name){
+void create_process(char *code, int length, int screen_index, char *file_name, int argc, char **argv){
 	cli();
 	/*print(itoa(*code));*/
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor));
 	process->image_name = (char *)malloc(strlen(file_name) + 1);
 	strcpy(process->image_name, file_name);
 	process->page_table = create_page_table();
+	process->regs = (registers *)malloc(sizeof(registers));
+	process->regs->cs = 0x1B;
+	process->regs->ss = 0x23;
+	process->regs->eip = PROCESS_CODE_BASE;
+	process->regs->eflags = 1<<9;
 	//print(itoa(process->page_table));
 	process->heap_start = (void *)(PROCESS_CODE_BASE + length);
 	process->open_files = create_list();
@@ -489,6 +495,29 @@ void create_process(char *code, int length, int screen_index, char *file_name){
 	identity_page(process->page_table, (void *)0x0, 0xfffff);
 	allocate_memory(process->page_table, (void *)PROCESS_CODE_BASE, length);
 	write_virtual_memory(process->page_table, code, (void *)PROCESS_CODE_BASE, length);
+
+	int arg_size = 0;
+	int i;
+	for(i = 0; i < argc; ++i)
+		arg_size += strlen(argv[i]) + 1;
+	arg_size += (argc+2)*4;
+	process->regs->esp = 0x9fffff - arg_size;
+
+	allocate_memory(process->page_table, (void *)(0x9fffff - arg_size), arg_size);
+	int *p_argc = (int *)malloc(sizeof(int));
+	*p_argc = argc;
+	write_virtual_memory(process->page_table, (void *)p_argc, (void *)(0x9fffff - arg_size), sizeof(int)); 
+
+	char **_argv = (char **)malloc(sizeof(int)*argc);
+	char *current_arg = (char *)(0x9fffff - arg_size + (argc + 2)*sizeof(int));
+	for(i = 0; i < argc; ++i){
+		write_virtual_memory(process->page_table, (void *)argv[i], (void *)current_arg, strlen(argv[i]) + 1); 
+		_argv[i] = current_arg;
+		current_arg += strlen(argv[i]) + 1;
+	}
+	write_virtual_memory(process->page_table, (void *)_argv, (void *)(0x9fffff - arg_size + 8), 4*argc); 
+	*p_argc = 0x9fffff - arg_size + 8;
+	write_virtual_memory(process->page_table, (void *)(p_argc), (void *)(0x9fffff - arg_size + 4), 4*argc); 
 	sti();
 }
 
@@ -523,8 +552,19 @@ int get_process_screen_index(PID process_index){
 	return ((process_descriptor *)get_list_element(process_list, process_index))->screen_index;
 }
 
-void execute_from_process(char *file_name){
+void execute_from_process(char *file_name, int argc, char **argv){
 	cli();
+	if(argc != 0){
+		char **_argv = (char **)malloc(sizeof(char *)*argc);
+		int i;
+		for(i = 0; i < argc; ++i){
+			_argv[i] = (char *)malloc(strlen(argv[i]) + 1);
+			strcpy(_argv[i], argv[i]);
+			_argv[i][strlen(argv[i])] = '\0';
+		}
+		argv = _argv;
+	}else
+		argv = 0;
 	char *_file_name = (char *)malloc(strlen(file_name) + 1);
 	strcpy(_file_name, file_name);
 	file_name = _file_name;
@@ -545,7 +585,7 @@ void execute_from_process(char *file_name){
 		}
 	}
 	process->state = BLOCKED;
-	execute(file_name, process->screen_index);
+	execute(file_name, process->screen_index, argc, argv);
 	process_descriptor *created_process = (process_descriptor *)get_list_element(process_list, process_list->length - 1);
 	created_process->parent = process;
 	created_process->ruid = process->euid;

@@ -1,9 +1,9 @@
 #include "./headers/os.h"
 #include "../headers/system_call.h"
 
-void execute(char *file_name){
+void execute(char *file_name, int argc, char **argv){
 	asm("pusha");
-	asm("int 0x40" : : "a"(EXECUTE), "d"(file_name));
+	asm("int 0x40" : : "a"(EXECUTE), "d"(file_name), "c"(argc), "b"(argv));
 	asm("popa");
 }
 

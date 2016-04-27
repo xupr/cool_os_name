@@ -3,7 +3,7 @@
 #include "../c/headers/string.h"
 #include "../c/headers/os.h"
 
-int main(void){
+int main(int argc, char **argv){
 	/*int i;
 	for(i = 0; i < 10000; ++i);*/
 	/*return 0;*/
@@ -46,7 +46,10 @@ int main(void){
 */
 	str = (char *)malloc(1024*sizeof(char));
 	while(1){
-		print(">>> ");
+		print("[");
+		print(argv[0]);
+		print("@cool_os_name]$ ");
+		/*print(">>> ");*/
 		memset(str, 0, 1024);
 		//char out[32];
 		input(str, 1024);
@@ -81,7 +84,7 @@ int main(void){
 		}else if(!strcmp(command, exit_command)){
 			break;
 		}else if(!strcmp(command, exec_command)){
-			execute(strtok(0, "\n"));
+			execute(strtok(0, "\n"), 0, 0);
 		}	
 		//	print("i'm so fking happy right now!");
 	}

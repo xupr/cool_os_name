@@ -75,7 +75,7 @@ void init(char *memory_map_length, void *memory_map){
 //	write(safta, "kappa123", 8);
 	int i;
 	for(i = 0; i < 4; ++i)
-		execute("login.bin", i);
+		execute("login.bin", i, 0, 0);
 
 	/*PAGE_TABLE p = create_page_table();
 	identity_page(p, 0, 0x5fffff);

@@ -3,7 +3,7 @@
 #include "../c/headers/string.h"
 #include "../c/headers/os.h"
 
-int main(void){
+int main(int argc, char *argv[]){
 	/*char *username = "a";
 	char *password = "a";*/
 	while(1){
@@ -23,12 +23,15 @@ int main(void){
 		fclose(fd);
 		char *username = strtok(buff, ":");
 		int uid = 0;
+		char **argv = (char **)malloc(sizeof(char *));
 		while(username){
 			if(!strcmp(username, input_username)){
 				char *password = strtok(0, ":");
 				if(!strcmp(password, input_password)){
 					seteuid(uid);
-					execute("shell.bin");
+					argv[0] = (char *)malloc(strlen(username) + 1);
+					strcpy(argv[0], username);
+					execute("shell.bin", 1, argv);
 					seteuid(0);
 				}else
 					print("wrong login credentials\n");

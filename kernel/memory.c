@@ -418,10 +418,11 @@ void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base,
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12)) + (((int)base>>12) & 0x3FF);
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
-			/*print(itoa(((current_page_table->physical_page)<<12)));
-			print(itoa(*source));*/
-			memcpy((char *)((current_page_table->physical_page)<<12), source, (limit - 1)%PAGE_SIZE + 1);
+			/*print(itoa(((current_page_table->physical_page)<<12)));*/
+			/*print(itoa(*source));*/
+			memcpy((char *)(((current_page_table->physical_page)<<12) + (int)base%0x1000), source, (limit - 1)%PAGE_SIZE + 1);
 			/*print(itoa(*(char *)((current_page_table->physical_page)<<12)));*/
+			/*print("\n");*/
 			/*print_off();*/
 			limit -= PAGE_SIZE;
 			source += PAGE_SIZE;

@@ -71,9 +71,11 @@ void *system_call_interrupt(void){
 			exit_process(status_code);
 			break;
 
-		case EXECUTE:
-			asm("" : "=d"(str));
-			execute_from_process(str);
+		case EXECUTE:;
+			int argc;
+			char **argv;
+			asm("" : "=d"(str), "=c"(argc), "=b"(argv));
+			execute_from_process(str, argc, argv);
 			break;
 
 		case DUMP_MEMORY_MAP:
