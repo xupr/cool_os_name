@@ -4,7 +4,8 @@ CROSS_COMPONENTS_LINKS=(ftp://ftp.gnu.org/gnu/binutils/binutils-2.26.tar.gz \
 				http://www.bastoul.net/cloog/pages/download/count.php3?url=./cloog-0.18.4.tar.gz \
 				ftp://ftp.gnu.org/gnu/mpc/mpc-1.0.3.tar.gz \
 				http://ftp.gnu.org/gnu/texinfo/texinfo-6.1.tar.gz \
-				ftp://ftp.gnu.org/gnu/gcc/gcc-4.9.3/gcc-4.9.3.tar.gz)
+				ftp://ftp.gnu.org/gnu/gcc/gcc-4.9.3/gcc-4.9.3.tar.gz \
+				http://isl.gforge.inria.fr/isl-0.12.2.tar.gz)
 mkdir build
 cd build
 for i in "${CROSS_COMPONENTS_LINKS[@]}"
@@ -24,14 +25,14 @@ do
 	tar -xJf $i 
 done
 
-export PREFIX="$HOME/cross2/"
+export PREFIX="$HOME/cross/"
 export TARGET=i686-elf
 export PATH="$PREFIX/bin:$PATH"
 cd gcc-4.9.3
 ln -s ../mpfr-3.1.4 mpfr
 ln -s ../gmp-6.1.0 gmp
 ln -s ../mpc-1.0.3 mpc
-#ln -s ../isl-0.12.2 isl
+ln -s ../isl-0.12.2 isl
 ln -s ../cloog-0.18.4 cloog
 cd ..
 

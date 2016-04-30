@@ -38,8 +38,10 @@ fs:
 	rm -rf default_fs/*.bin
 	rm -rf default_fs/*.o
 	gcc add_file.c -o add_file.o
+	gcc add_directory.c -o add_directory.o
 	dd if=/dev/zero of=os.img bs=1M count=31 seek=1 conv=notrunc
 	printf '\x7' | dd of=os.img bs=1 seek=17825792 conv=notrunc 
+	./add_directory.o /
 	$(foreach file, $(wildcard default_fs/*.txt), ./add_file.o ${file} ${file};)
 	make _fs
 

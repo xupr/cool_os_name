@@ -7,6 +7,7 @@
 #include "../headers/screen.h"
 #include "../headers/string.h"
 #include "../headers/filesystem.h"
+#include "../headers/inode.h"
 #include "../headers/interrupts.h"
 #include "../headers/portio.h"
 
@@ -16,17 +17,6 @@
 
 #define PIT_COMMAND_REGISTER 0x43
 #define PIT_CHANNEL0_DATA_PORT 0x40
-
-typedef struct {
-	unsigned char bound;
-	unsigned short access;
-	unsigned int creator_uid;
-	unsigned int size;
-	unsigned int address_block;
-	unsigned short name_address;
-	unsigned int creation_date;
-	unsigned int update_date;
-} inode;
 
 typedef enum{
 	CREATED,

@@ -43,6 +43,7 @@ void *malloc(unsigned int size){
 		print("WTFFFFFFFFFFFFFFFF");
 		print_off();
 	}*/
+	/*print(itoa(s));*/
 	return (void *)s + sizeof(heap_memory_structure);
 }
 

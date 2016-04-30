@@ -1,4 +1,5 @@
 #include "../headers/filesystem.h"
+#include "../headers/inode.h"
 #include "../headers/kernel.h"
 #include "../headers/ata.h"
 #include "../headers/heap.h"
@@ -15,18 +16,8 @@
 #define FILE_SYSTEM_BASE 34816
 
 typedef struct {
-	unsigned char bound;
-	unsigned short access;
-	unsigned int creator_uid;
-	unsigned int size;
-	unsigned int address_block;
-	unsigned short name_address;
-	unsigned int creation_date;
-	unsigned int update_date;
-} inode;
-
-typedef struct {
 	inode *inode;
+	unsigned int inode_index;
 	int *physical_address_block;
 	list *file_data_blocks_list;
 	int file_offset;
@@ -104,26 +95,106 @@ int get_file_size(char *file_name){
 	return -1;
 }
 
+int get_inode_index_of(char *file_name){
+	int *inode_index_list = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
+	char *current_path = strtok(file_name, "/");	
+	int inode_index = 0;
+
+	while(current_path){
+		ata_read_sectors(inode_list[inode_index].address_block, BLOCK_SIZE, (char *)inode_index_list);
+		int i, length = BLOCK_SIZE*SECTOR_SIZE/sizeof(int);
+		for(i = 0; i < length; ++i){
+			if(inode_index_list[i] == 0)
+				break;
+
+			inode *current_inode = inode_list + inode_index_list[i];
+			if(!strcmp(current_inode->name_address + file_names_list, current_path))
+				break;
+		}
+
+		if(inode_index_list[i] == 0)
+			break;
+		else
+			inode_index = inode_index_list[i];
+
+		current_path = strtok(0, "/");
+	}
+	
+	while(current_path){
+		int i, length = BLOCK_SIZE*SECTOR_SIZE/sizeof(inode);
+		for(i = 0; i < length; ++i){
+			if(!inode_list[i].bound)
+				break;
+		}
+
+		inode *current_inode = inode_list + i;
+		int _inode_index = i;
+		for(i = 0; i < BLOCK_SIZE*SECTOR_SIZE; ++i){
+			if(!strcmp(file_names_list + i, current_path))
+				break;
+			if(*(file_names_list + i) == '\0' && *(file_names_list + i + 1) == '\0'){
+				++i;
+				strcpy(file_names_list + i, current_path);
+				ata_write_sectors(FILE_NAMES_LIST, BLOCK_SIZE, (char *)file_names_list);
+				break;
+			}
+		}
+
+		current_inode->name_address = i;
+		current_inode->type = DIRECTORY;
+		current_inode->bound = 1;
+		current_inode->access = 0700;
+		current_inode->creator_uid = get_current_euid();
+		current_inode->size = 0;
+		current_inode->address_block = get_free_block();
+		current_inode->creation_date = 0;
+		current_inode->update_date = 0;
+
+		length = BLOCK_SIZE*SECTOR_SIZE/sizeof(int);
+		for(i = 0; i < length; ++i){
+			if(inode_index_list[i] == 0){
+				inode_index_list[i] = _inode_index;
+				break;
+			}
+		}
+		ata_write_sectors(inode_list[inode_index].address_block, BLOCK_SIZE, (char *)inode_index_list);
+		inode_index = _inode_index;
+
+		current_path = strtok(0, "/");
+		if(current_path){
+			ata_read_sectors(current_inode->address_block, BLOCK_SIZE, (char *)inode_index_list);
+		}else{
+			current_inode->type = REGULAR_FILE;
+			ata_write_sectors(INODE_LIST, BLOCK_SIZE, (char *)inode_list);
+			break;
+		}
+	}
+
+	free(inode_index_list);
+	return inode_index;
+}
+
 FILE open(char *file_name){
-	int inode_index;
-//	print("\n");
+	cli();
 	print("opening ");
 	print(file_name);
 	print("\n");
-	list_node *current_file = open_files_list->first;
-	int index = 0;
-	while(current_file){
-		if(((file_descriptor *)current_file->value)->used && !strcmp(((file_descriptor *)current_file->value)->inode->name_address + file_names_list, file_name)){
-			print("file already open\n");
-			return index;
-		}
-		current_file = current_file->next;
-		++index;
-	}
 
+	int inode_index = get_inode_index_of(file_name);
 	list_node *current_file_descriptor_node = open_files_list->first;
 	FILE file_descriptor_index = 0;
 	while(current_file_descriptor_node){
+		file_descriptor *current_open_file = (file_descriptor *)current_file_descriptor_node->value;
+		if(current_open_file->inode_index == inode_index && current_open_file->used)
+			return file_descriptor_index;
+
+		++file_descriptor_index;
+		current_file_descriptor_node = current_file_descriptor_node->next;
+	}
+	
+	current_file_descriptor_node = open_files_list->first;
+	file_descriptor_index = 0;
+	while(current_file_descriptor_node){ //getting the file index
 		file_descriptor *current_file_descriptor = (file_descriptor *)current_file_descriptor_node->value; 
 		if(!current_file_descriptor->used)
 			break;
@@ -139,11 +210,57 @@ FILE open(char *file_name){
 	}else
 		file = (file_descriptor *)current_file_descriptor_node->value;
 
-	for(inode_index = 0; inode_index<inode_count; ++inode_index){
+	file->inode = inode_list+inode_index;
+	file->inode_index = inode_index;
+	file->physical_address_block = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
+	ata_read_sectors(file->inode->address_block, BLOCK_SIZE, (char *)file->physical_address_block);
+	file->file_data_blocks_list = create_list();
+	file->file_offset = 0;
+	file->used = 1;
+	sti();
+	return file_descriptor_index; 
+}
+
+/*FILE open(char *file_name){
+	int inode_index;
+//	print("\n");
+	print("opening ");
+	print(file_name);
+	print("\n");
+	list_node *current_file = open_files_list->first;
+	int index = 0;
+	while(current_file){ //checking if file already open
+		if(((file_descriptor *)current_file->value)->used && !strcmp(((file_descriptor *)current_file->value)->inode->name_address + file_names_list, file_name)){
+			print("file already open\n");
+			return index;
+		}
+		current_file = current_file->next;
+		++index;
+	}
+
+	list_node *current_file_descriptor_node = open_files_list->first;
+	FILE file_descriptor_index = 0;
+	while(current_file_descriptor_node){ //getting the file index
+		file_descriptor *current_file_descriptor = (file_descriptor *)current_file_descriptor_node->value; 
+		if(!current_file_descriptor->used)
+			break;
+
+		++file_descriptor_index;
+		current_file_descriptor_node = current_file_descriptor_node->next;
+	}
+
+	file_descriptor *file;
+	if(!current_file_descriptor_node){
+		file = (file_descriptor *)malloc(sizeof(file_descriptor));	
+		add_to_list(open_files_list, file);
+	}else
+		file = (file_descriptor *)current_file_descriptor_node->value;
+
+	for(inode_index = 0; inode_index<inode_count; ++inode_index){ //checking if exists
 		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
-			/*print("kappa123 ");
+			[>print("kappa123 ");
 			print(file_names_list + (inode_list+inode_index)->name_address);
-			print("\n");*/
+			print("\n");<]
 			//print(((inode_list+inode_index)->name_address+file_names_list));
 			file->inode = (inode *)(inode_list+inode_index);
 			file->physical_address_block = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
@@ -157,10 +274,11 @@ FILE open(char *file_name){
 	}
 	
 	//print("1");
-	for(inode_index = 0; inode_index<inode_count; ++inode_index){
+	for(inode_index = 0; inode_index<inode_count; ++inode_index){ //creating
 		if(!(inode_list+inode_index)->bound){
 			inode *file_node = inode_list+inode_index;
 			file_node->bound = 1;
+			file_node->type = REGULAR_FILE;
 			file_node->access = 0700;
 			file_node->size = 0;
 			file_node->address_block = get_free_block();
@@ -196,7 +314,7 @@ FILE open(char *file_name){
 	}
 	
 	return -1;
-}
+}*/
 
 int get_free_block(void){
 	int bitmap_index, mask;
@@ -369,6 +487,9 @@ void execute(char *file_name, int screen_index, int argc, char **argv){
 
 void close(FILE file_descriptor_index){
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
+	print("closing ");
+	print(current_file_descriptor->inode->name_address + file_names_list);
+	print("\n");
 	free(current_file_descriptor->physical_address_block);
 
 	list_node *current_file_data_block_node = current_file_descriptor->file_data_blocks_list->first;
