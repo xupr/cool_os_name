@@ -5,8 +5,7 @@ SECTION .load
 EXTERN init_heap
 EXTERN main
 EXTERN exit
-_start:
-;	MOV byte [0x100000], 3
+_start: ;initilize the heap, run main, then exit the process
 	CALL init_heap
 	CALL main
 	PUSH EAX

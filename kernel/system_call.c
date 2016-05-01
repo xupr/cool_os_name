@@ -7,12 +7,11 @@
 
 void *system_call_iterrupt_entry;
 
-void init_system_call(void){
+void init_system_call(void){ //initialize system call interupt
 	create_IDT_descriptor(0x40, (unsigned int)&system_call_iterrupt_entry, 0x8, 0xEF);
-//	print("kappa123");
 }
 
-void *system_call_interrupt(void){
+void *system_call_interrupt(void){ //issue a system call according to the value in eax
 	enum SYSTEM_CALL system_call_name;
 	asm("" : "=a"(system_call_name));
 	char *str;
@@ -25,7 +24,6 @@ void *system_call_interrupt(void){
 			asm("" : "=d"(str));
 			set_vga_colors(WHITE, BLACK);
 			print_to_other_screen(str, get_process_screen_index(get_current_process()));
-		//	print(str);
 			break;
 
 		case INPUT:
@@ -43,9 +41,6 @@ void *system_call_interrupt(void){
 			asm("" : "=b"(mode), "=d"(str));
 			fd = fopen(str, mode);
 			return &fd;
-		//	asm("pop eax;popa");
-		//	asm("" : : "a"(fd));
-		//	asm("iret");
 			break;
 
 		case FWRITE:
@@ -100,5 +95,4 @@ void *system_call_interrupt(void){
 	}
 
 	return 0;
-	//print();
 }

@@ -45,46 +45,24 @@ static int current_screen_index = 0;
 static int to_print = 1;
 static int tab_size = 8;
 
-int get_current_screen_index(void){
+int get_current_screen_index(void){ //returns the current screen index
 	return current_screen_index;
 }
 
-void set_tab_size(int new_tab_size){
+void set_tab_size(int new_tab_size){ //sets the tab size when printing with \t
 	tab_size = new_tab_size;
 }
 
-void init_screen(void){
+void init_screen(void){ //initializes the screen
 	clear_screen();
 	unsigned char mo_reg = inb(MISC_OUTPUT_REGISTER_READ);
 	outb(MISC_OUTPUT_REGISTER_WRITE, mo_reg | 1); //set color graphics adapter addressing
-	//outb(CRT_ADDRESS_REGISTER, HORIZONTAL_TOTAL_REGISTER_INDEX);
-	//outb(CRT_DATA_REGISTER, 5)i;
-	//enable bright colors and disable blinking
 	inb(INPUT_STATUS1_REGISTER);
 	outb(ATTRIBUTE_ADDRESS_DATA_REGISTER, ATTRIBUTE_MODE_CONTROL_REGISTER_INDEX | PALETTE_ADDRESS_SOURCE);
 	char mode_control_register = inb(ATTRIBUTE_DATA_READ_REGISTER);
 	outb(ATTRIBUTE_ADDRESS_DATA_REGISTER, mode_control_register & (~8));
-	/*outb(CRT_ADDRESS_REGISTER, 0x11);
-	unsigned char vertical_retrace_end_reg = inb(CRT_DATA_REGISTER);
-	if(vertical_retrace_end_reg & 0b10000000) print("Protected");
-	else print("unprotected");
-	outb(CRT_DATA_REGISTER, vertical_retrace_end_reg & 0b0111111);
-	
-	vertical_retrace_end_reg = inb(CRT_DATA_REGISTER);
-	if(vertical_retrace_end_reg & 0b10000000) print("Protected");
-	else print("unprotected");
-
-	outb(CRT_ADDRESS_REGISTER, HORIZONTAL_TOTAL_REGISTER_INDEX);
-	outb(CRT_DATA_REGISTER, COLUMNS - 5); //set the columnts to 80
-
-	outb(CRT_ADDRESS_REGISTER, VERTICAL_TOTAL_REGISTER_INDEX);
-	outb(CRT_DATA_REGISTER, ROWS);*/
-
-	//outb(CRT_ADDRESS_REGISTER, HORIZONTAL_TOTAL_REGISTER_INDEX);
-	//inb(CRT_DATA_REGISTER);
 
 	init_cursor();
-	//set_cursor(5);
 	screen_list = create_list();
 	int i;
 	for(i = 0; i < 4; ++i){
@@ -98,7 +76,7 @@ void init_screen(void){
 	return;
 }
 
-void switch_screen(int new_screen_index){
+void switch_screen(int new_screen_index){ //switch to a different screen
 	cli();
 	screen_descriptor *current_sd = (screen_descriptor *)get_list_element(screen_list, current_screen_index);
 	screen_descriptor *new_sd = (screen_descriptor *)get_list_element(screen_list, new_screen_index);
@@ -113,14 +91,14 @@ void switch_screen(int new_screen_index){
 	sti();
 }
 
-void set_vga_colors(VGA_COLOR new_foreground, VGA_COLOR new_background){
+void set_vga_colors(VGA_COLOR new_foreground, VGA_COLOR new_background){ //set vga colors for next print
 	if(!to_print)
 		return;
 	foreground = new_foreground;
 	background = new_background;
 }
 
-unsigned short get_start_address(){
+unsigned short get_start_address(){ //get screen start address
 	outb(CRT_ADDRESS_REGISTER, START_ADDRESS_LOW_REGISTER_INDEX);
 	unsigned short offset = inb(CRT_DATA_REGISTER);
 	
@@ -130,7 +108,7 @@ unsigned short get_start_address(){
 	return offset;
 }
 
-void scroll_lines(int count){
+void scroll_lines(int count){ //scroll lines forward or backward
 	screen_descriptor *current_sd = (screen_descriptor *)get_list_element(screen_list, current_screen_index);
 	current_sd->scroll += count;
 	unsigned short offset = get_start_address() + count*COLUMNS;
@@ -144,7 +122,7 @@ void scroll_lines(int count){
 	outb(CRT_DATA_REGISTER, offset>>8);
 }
 
-void scroll_pages(int count){
+void scroll_pages(int count){ //scroll whole pages
 	screen_descriptor *current_sd = (screen_descriptor *)get_list_element(screen_list, current_screen_index);
 	current_sd->scroll += count*ROWS;
 	unsigned short offset = get_start_address() + count*ROWS*COLUMNS;
@@ -158,7 +136,7 @@ void scroll_pages(int count){
 	outb(CRT_DATA_REGISTER, offset>>8);
 }
 
-void print(char *str){
+void print(char *str){ //print to current screen and move the cursor and scroll position accordingly
 	if(!to_print)
 		return;
 	cli();
@@ -184,9 +162,7 @@ void print(char *str){
 	*screen++ = 0;
 	*screen = 0x0f;
 	
-	//if(foreground != WHITE)
 	foreground = WHITE;
-	//if(background != BRIGHT_RED)
 	background = GREEN;
 
 	set_cursor(((int)screen - (int)SCREEN)/2);
@@ -198,7 +174,7 @@ void print(char *str){
 	sti();
 }
 
-void print_to_other_screen(char *str, int screen_index){
+void print_to_other_screen(char *str, int screen_index){ //print to a screen and alter it scroll position and cursur position accordingly
 	if(!to_print)
 		return;
 
@@ -233,35 +209,27 @@ void print_to_other_screen(char *str, int screen_index){
 	*screen++ = 0;
 	*screen = 0x0f;
 	
-	//if(foreground != WHITE)
 	foreground = WHITE;
-	//if(background != BRIGHT_RED)
 	background = GREEN;
 	
 	sd->cursor_offset = ((int)screen - (int)sd->screen)/2;
-	//set_cursor(((int)screen - (int)SCREEN)/2);
-	/*unsigned short offset = get_start_address();
-	if(offset + ROWS*COLUMNS < ((int)screen - (int)SCREEN)/2)
-		sd->scroll += ((((int)screen - (int)SCREEN)/2 - offset - ROWS*COLUMNS)/COLUMNS + 1);
-	else if(offset > ((int)screen - (int)SCREEN)/2)
-		sd->scroll += ((((int)screen - (int)SCREEN)/2 - offset)/COLUMNS - 1);*/
 	sti();
 }
 
-void print_on(void){
+void print_on(void){ //turn printing on
 	to_print = 1;
 }
 
-void print_off(void){
+void print_off(void){ //turn printing off (debuging purposes)
 	/*to_print = 0;*/
 }
 
-void clear_screen(void){
+void clear_screen(void){ //clear the screen
 	unsigned char *screen = (unsigned char *)SCREEN;
 	while(screen < (unsigned char *)SCREEN_END) *screen++ = '\0';
 }
 
-void init_cursor(void){
+void init_cursor(void){ //initialize the cursor
 	unsigned char crt_address_reg = inb(CRT_ADDRESS_REGISTER); //save the crt address reg for later restoration
 	
 	outb(CRT_ADDRESS_REGISTER, CURSOR_START_REGISTER_INDEX); 
@@ -284,7 +252,7 @@ void init_cursor(void){
 	return;
 }
 
-short get_cursor(void){	
+short get_cursor(void){	//get cursor position
 	unsigned char crt_address_reg = inb(CRT_ADDRESS_REGISTER); //save the crt address reg for later restoration
 
 	outb(CRT_ADDRESS_REGISTER, CURSOR_LOCATION_LOW_REGISTER_INDEX);
@@ -297,7 +265,7 @@ short get_cursor(void){
 	return cursor_low_address + (cursor_high_address<<8);
 }
 
-void set_cursor(short address){	
+void set_cursor(short address){	//set the cursor position
 	unsigned char crt_address_reg = inb(CRT_ADDRESS_REGISTER); //save the crt address reg for later restoration
 
 	outb(CRT_ADDRESS_REGISTER, CURSOR_LOCATION_LOW_REGISTER_INDEX);

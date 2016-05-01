@@ -2,6 +2,7 @@
 #include "../headers/heap.h"
 #include "../headers/screen.h"
 
+//same string manipulation functions from the standard c library
 char *itoa(unsigned int number){
 	int length = 1;
 	int _number = number;

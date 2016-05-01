@@ -4,5 +4,5 @@ EXTERN ata_interrupt_handler
 
 SECTION .text
 ata_interrupt_entry:
-	CALL ata_interrupt_handler
+	CALL ata_interrupt_handler ;call ata interrupt handler
 	IRET

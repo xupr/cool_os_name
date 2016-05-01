@@ -6,19 +6,15 @@
 
 void *exception_interrupt_entry;
 
-void init_exception(void){
-	//print("hello world! time to get an exception");i
-//	print(itoa(exception_interrupt_entry));
+void init_exception(void){ //initialize exceptions
 	create_IDT_descriptor(0xE, (int)&exception_interrupt_entry, 0x8, 0x8E);
 	print("--page faults initialized\n");
 }
 
-void exception_handler(int fault_info){
+void exception_handler(int fault_info){ //handle page faults
 	asm("pusha");
 	void *address;
-//	asm("pop eax" : "=a"(fault_info));
 	asm("mov eax, cr2" : "=a"(address));
 	handle_page_fault(address, fault_info);
-//	print(itoa(address));
 	asm("popa");
 }

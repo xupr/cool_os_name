@@ -2,11 +2,11 @@
 #include "headers/stdio.h"
 #include "headers/stdlib.h"
 
+//same string manipulation functions from the standard c library
 char *itoa(unsigned int number){
 	int length = 1;
 	int _number = number;
 	while((_number = _number/10) != 0) ++length;
-	//char *string = (char *)malloc((length + 1)*sizeof(char));
 	static char string[16];
 	*(string+length) = '\0';
 	for(;length > 0; *(string+(--length)) = (number%10 + 0x30), number /= 10); 

@@ -2,18 +2,19 @@
 #include "../headers/system_call.h"
 #include "headers/string.h"
 
-void print(char *str){
+void print(char *str){ //print string to the screen
 	asm("pusha");
 	asm("int 0x40" : : "d"(str), "a"(PRINT));
 	asm("popa");
 }
 
-void input(char *str, int length){
+void input(char *str, int length){ //get a line of input from the keyboard
 	asm("pusha");
 	asm("int 0x40" : : "d"(str), "a"(INPUT), "c"(length));
 	asm("popa");
 }
 
+//same I/O functions from the standard c library
 FILE fopen(char *file_name, char *mode){
 	FILE fd;
 	asm("int 0x40" : "=a"(fd) : "a"(FOPEN), "b"(mode), "d"(file_name));	

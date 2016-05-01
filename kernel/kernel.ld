@@ -3,16 +3,7 @@ ENTRY(_start)
 phys = 0x7c00;
 lma = 0x100000;
 
-/*MEMORY{
-	flash(RX): ORIGIN = 0x7c00, LENGTH = 1K
-	ram(RX): ORIGIN = 0x10000, LENGTH = 8K
-}*/
-
-SECTIONS{
-	/*.boot phys : {
-		boot = .;
-		*(.boot)
-	 } >flash*/
+SECTIONS{ /*link everything so that the load section is first*/
 	GROUP lma : {
 		.text : {
 			*(.load)

@@ -27,7 +27,6 @@ typedef enum{
 } PROCESS_STATE;
 
 typedef struct{
-//	unsigned int eflags;
 	unsigned int edi;
 	unsigned int esi;
 	unsigned int ebp;
@@ -79,12 +78,11 @@ static list *process_list;
 static char tss[104];
 static int free_kernel_stack = 0x4FFFFF;
 static int current_process = -1;
-//void (*jump_to_ring3)(int offset);
 extern void jump_to_ring3(int offset);
 static int screen_index_for_shell = 0;
 static int exited_process = 0;
 
-void dump_process_list(void){
+void dump_process_list(void){ //print data on active processes
 	cli();
 	list_node *current_process_descriptor_node = process_list->first;
 	int pid = 0;
@@ -141,33 +139,28 @@ void switch_kernel_stack(int new_kernel_stack){
 }
 
 void init_process(void){
-	char gdt[6];
+	char gdt[6]; //initialize tss
 	asm("sgdt %0" : "=m"(gdt));
 	char *c = *((char **)(gdt + 2)) + 5*8;
 	*(short *)(c+2) = (short)((int)tss & 0xFFFF);
 	*(c+4) = (char)(((int)tss>>16) & 0xFF);
 	*(c+7) = (char)(((int)tss>>24) & 0xFF);
-	//print(itoa((int)tss));
 	*(int *)(tss + 4) = 0x4FFFFF;
 	*(short *)(tss + 8) = 0x10;
 	*(short *)(tss + 102) = 104;
 	asm("mov ax, 0x2B; ltr ax");
 	print("--tss initialized\n");
 	
-	outb(PIT_COMMAND_REGISTER, 0b00110100);
+	outb(PIT_COMMAND_REGISTER, 0b00110100); //initialize PIT
 	outb(PIT_CHANNEL0_DATA_PORT, 0);
 	outb(PIT_CHANNEL0_DATA_PORT, 0);
 	create_IDT_descriptor(0x20, (int)&pit_interrupt_entry, 0x8, 0x8E);
+	print("--PIT initialized\n");
 
 	process_list = create_list();
-/*	process_descriptor *kernel_process = (process_descriptor *)malloc(sizeof(process_descriptor));
-	kernel_process->page_table = 0;
-	kernel_process->state = RUNNING;
-	kernel_process->open_files = 0;
-	add_to_list(process_list, kernel_process);
-*/}
+}
 
-int find_process_to_run(void){
+PID find_process_to_run(void){ //find a process to run
 	int process_to_run = current_process+1;
 	if(process_to_run >= process_list->length)
 		process_to_run = 0;
@@ -196,42 +189,11 @@ int find_process_to_run(void){
 	}
 
 	return current_process;
-	/*list_node *process_node = process_list->first;
-	int i = 0;
-	int found = 0;
-	while(process_node){
-		process_descriptor *process = (process_descriptor *)process_node->value;
-		if(found)
-			if(process->state == CREATED || process->state == WAITING)
-				return i;
-		
-		if(process->state == RUNNING || (process->state == BLOCKED && process->quantum != 0))
-			found = 1;
-
-		process_node = process_node->next;
-		++i;
-	}
-
-	return 0;*/
-}
-
-void copy_registers(registers *dst, registers *src){
-	if(src->cs & 3){
-		memcpy(dst, src, sizeof(registers));
-		return;
-	}
-
-	memcpy(dst, src, sizeof(registers) - 2*4);
 }
 
 void switch_process(PID new_process_index, registers *regs){
 	process_descriptor *new_process = (process_descriptor *)get_list_element(process_list, new_process_index);
 	if(new_process->state == CREATED){
-		/*print("switching from PID ");
-		if(current_process != -1)
-			print(itoa(current_process));
-		else
-			print("-1");*/
 		print("running created process with PID ");
 		print(itoa(new_process_index));
 		print("\n");
@@ -239,26 +201,11 @@ void switch_process(PID new_process_index, registers *regs){
 		current_process = new_process_index;
 		new_process->state = RUNNING;
 		new_process->quantum = 5;
-		/*new_process->regs = (registers *)malloc(sizeof(registers));
-		regs->esp = 0x9FFFFF;
-		regs->cs = 0x1B;
-		regs->ss = 0x23;
-		regs->eip = PROCESS_CODE_BASE;*/
-		//print(itoa(regs->eflags));
 		switch_kernel_stack(new_process->kernel_stack);
-		/*print(itoa(new_process->page_table));*/
 		switch_memory_map(new_process->page_table);
 		return;
 	}
 
-	/*print("switching from PID ");
-	if(current_process != -1)
-		print(itoa(current_process));
-	else
-		print("-1");
-	print(" to PID ");
-	print(itoa(new_process_index));
-	print("\n");*/
 	if(new_process->state == WAITING){
 		current_process = new_process_index;
 		new_process->state = RUNNING;
@@ -273,7 +220,7 @@ void switch_process(PID new_process_index, registers *regs){
 	}
 }
 
-void pit_interrupt_handler(registers *regs){
+void pit_interrupt_handler(registers *regs){ //scheduler
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	if(process_list->length == 0){
 		send_EOI(0);
@@ -305,11 +252,11 @@ void pit_interrupt_handler(registers *regs){
 	return;
 }
 
-FILE fopen(char *file_name, char *mode){
+FILE fopen(char *file_name, char *mode){ 
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	inode *current_inode = (inode *)malloc(sizeof(inode)); 
 	get_inode(file_name, current_inode);
-	if(process->euid && current_inode->bound != 255){
+	if(process->euid && current_inode->bound != 255){ //check permissions
 		short relevant_access_bits;
 		if(process->euid == current_inode->creator_uid)
 			relevant_access_bits = (current_inode->access>>6);
@@ -324,7 +271,7 @@ FILE fopen(char *file_name, char *mode){
 			return -1;
 	}
 	
-	FILE fd = open(file_name);
+	FILE fd = open(file_name); //open the file
 	list_node *current_open_file_node = process->open_files->first;
 	FILE vfd = 0;
 	while(current_open_file_node){
@@ -359,7 +306,7 @@ FILE fopen(char *file_name, char *mode){
 	return vfd;
 }
 
-int fread(char *buff, int count, FILE fd){
+int fread(char *buff, int count, FILE fd){ //read if permissions allow
 	if(fd == -1)
 		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
@@ -372,7 +319,7 @@ int fread(char *buff, int count, FILE fd){
 	return bytes_read;
 }
 
-int fwrite(char *buff, int count, FILE fd){
+int fwrite(char *buff, int count, FILE fd){ //write if permissions allow
 	if(fd == -1)
 		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
@@ -385,7 +332,7 @@ int fwrite(char *buff, int count, FILE fd){
 	return bytes_written;
 }
 
-void fclose(FILE fd){
+void fclose(FILE fd){ //close file if possible (no other process uses it)
 	if(fd == -1)
 		return;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
@@ -413,7 +360,7 @@ void fclose(FILE fd){
 	file->used = 0;
 }
 
-void handle_page_fault(void *address, int fault_info){
+void handle_page_fault(void *address, int fault_info){ //handle page faults
 	set_vga_colors(WHITE, RED);
 	print("page fault on address ");
 	set_vga_colors(WHITE, RED);
@@ -436,27 +383,27 @@ void handle_page_fault(void *address, int fault_info){
 	set_vga_colors(WHITE, RED);
 	if((*(page_fault_error_code *)&fault_info).instruction_fetch)
 		print("INSTRUCTION FETCH, ");
-	if(!(*(page_fault_error_code *)&fault_info).present){
+	if(!(*(page_fault_error_code *)&fault_info).present){ //if the page isnt present allocate
 		set_vga_colors(WHITE, RED);
 		print("page not present\n");
 		process_descriptor *current_process_descriptor = (process_descriptor *)get_list_element(process_list, current_process);
 		allocate_memory(current_process_descriptor->page_table, address, 1);
-	}else{
+	}else{ //if there is a permissions violation, exit the process
 		set_vga_colors(WHITE, RED);
 		print("no premissions to enter page\n");
 		if((*(page_fault_error_code *)&fault_info).user)
-			exited_process(-1);
+			exit_process(-1);
 	}
 }
 
-void *get_heap_start(PID process_index){
+void *get_heap_start(PID process_index){ //return heap bottom of process
 	return ((process_descriptor *)get_list_element(process_list, process_index))->heap_start;
 }
 
 void create_process(char *code, int length, int screen_index, char *file_name, int argc, char **argv){
 	cli();
 	/*print(itoa(*code));*/
-	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor));
+	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor)); //create a process descriptor
 	process->image_name = (char *)malloc(strlen(file_name) + 1);
 	strcpy(process->image_name, file_name);
 	process->page_table = create_page_table();
@@ -465,7 +412,6 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	process->regs->ss = 0x23;
 	process->regs->eip = PROCESS_CODE_BASE;
 	process->regs->eflags = 1<<9;
-	//print(itoa(process->page_table));
 	process->heap_start = (void *)(PROCESS_CODE_BASE + length);
 	process->open_files = create_list();
 	process->state = CREATED;
@@ -476,15 +422,12 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	process->euid = 0;
 	free_kernel_stack -= 0x10000;
 	add_to_list(process_list, process);
-	/*PID _current_process = current_process;
-	current_process = process_list->length - 1;*/
-	identity_page(process->page_table, (void *)KERNEL_BASE, KERNEL_LIMIT);
-//	identity_page(process->page_table, (void *)SCREEN, SCREEN_END - SCREEN - 1);
+	identity_page(process->page_table, (void *)KERNEL_BASE, KERNEL_LIMIT); //allocate and write process memory
 	identity_page(process->page_table, (void *)0x0, 0xfffff);
 	allocate_memory(process->page_table, (void *)PROCESS_CODE_BASE, length);
 	write_virtual_memory(process->page_table, code, (void *)PROCESS_CODE_BASE, length);
 
-	int arg_size = 0;
+	int arg_size = 0; //handle arguments
 	int i;
 	for(i = 0; i < argc; ++i)
 		arg_size += strlen(argv[i]) + 1;
@@ -509,7 +452,7 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	sti();
 }
 
-void exit_process(int result_code){
+void exit_process(int result_code){ //exit process, clean resorces and run parent
 	cli();
 	print("process with PID ");
 	print(itoa(current_process));
@@ -519,10 +462,22 @@ void exit_process(int result_code){
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	free_page_table(process->page_table);
-	if(process->parent && process->parent->state == BLOCKED){
-		/*print("resuming parent process\n");*/
+	list_node *current_open_file_node = process->open_files->first;
+	int fd = 0;
+	while(current_open_file_node){ //close open files
+		if(((open_file *)current_open_file_node->value)->used)
+			fclose(fd);		
+
+		free(current_open_file_node);
+		current_open_file_node = current_open_file_node->next;
+		++fd;
+	}
+	free(process->open_files);
+	if(process->parent && process->parent->state == BLOCKED){ //resume parent process
+		print("resuming parent process\n");
 		process->parent->state = WAITING;
 	}
+	
 	//TODO clean other stuff up too lazy right now :(
 	remove_from_list(process_list, process);
 	process->state = EXITED;
@@ -532,17 +487,17 @@ void exit_process(int result_code){
 	while(1) asm("hlt");
 }
 
-PID get_current_process(void){
+PID get_current_process(void){ //return current process PID
 	return (PID)current_process;
 }
 
-int get_process_screen_index(PID process_index){
+int get_process_screen_index(PID process_index){ //return process's screen index
 	return ((process_descriptor *)get_list_element(process_list, process_index))->screen_index;
 }
 
 void execute_from_process(char *file_name, int argc, char **argv){
 	cli();
-	if(argc != 0){
+	if(argc != 0){ //handle arguments
 		char **_argv = (char **)malloc(sizeof(char *)*argc);
 		int i;
 		for(i = 0; i < argc; ++i){
@@ -560,7 +515,7 @@ void execute_from_process(char *file_name, int argc, char **argv){
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	inode *current_inode = (inode *)malloc(sizeof(inode)); 
 	get_inode(file_name, current_inode);
-	if(process->euid && current_inode->bound != 255){
+	if(process->euid && current_inode->bound != 255){ //check permissions
 		short relevant_access_bits;
 		if(process->euid == current_inode->creator_uid)
 			relevant_access_bits = (current_inode->access>>6);
@@ -572,7 +527,7 @@ void execute_from_process(char *file_name, int argc, char **argv){
 			return;
 		}
 	}
-	process->state = BLOCKED;
+	process->state = BLOCKED; //execute
 	execute(file_name, process->screen_index, argc, argv);
 	process_descriptor *created_process = (process_descriptor *)get_list_element(process_list, process_list->length - 1);
 	created_process->parent = process;
@@ -583,7 +538,7 @@ void execute_from_process(char *file_name, int argc, char **argv){
 		asm("hlt");
 }
 
-int seteuid(int new_euid){
+int seteuid(int new_euid){ //change effective uid
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	if(process->ruid == 0){
 		process->euid = new_euid;
@@ -593,7 +548,7 @@ int seteuid(int new_euid){
 	return -1;
 }
 
-int get_current_euid(void){
+int get_current_euid(void){ //get effective uid
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	return process->euid;
 }

@@ -31,11 +31,11 @@ static struct __attribute__((__packed__)){
 
 static IDT_descriptor *IDT_descriptors;
 
-void create_IDT_descriptor(int index, unsigned int offset, unsigned short selector, unsigned char attr){
+void create_IDT_descriptor(int index, unsigned int offset, unsigned short selector, unsigned char attr){ //create IDT descriptor
 	*(IDT_descriptors + index) = (IDT_descriptor){.offset_low = offset & 0xFFFF, .selector = selector, .zero = 0, attr = attr, .offset_high = offset>>16};
 }
 
-void init_pic(void){
+void init_pic(void){ //initialize the PIC (moves the IRQs to different IDT selectors)
 	unsigned char master_mask = inb(MASTER_PIC_DATA);
 	unsigned char slave_mask = inb(SLAVE_PIC_DATA);
 
@@ -53,22 +53,17 @@ void init_pic(void){
 	return;
 }
 
-void init_interrupts(void){
+void init_interrupts(void){ //initialize interrupts
 	init_pic();
 	print("--PIC initialized\n");
-	//IDTR.base = IDT_descriptors;
-	//IDTR.limit = IDT_DESCRIPTORS_LENGTH*sizeof(IDT_descriptor) - 1;
-	//create_IDT_descriptor(0, 0, 0, 0);
 	asm("SIDT [eax]" : "=a" (IDTR));
 	IDT_descriptors = IDTR->base;
 	print("--IDT initialized\n");
-	//create_IDT_descriptor(0x21, (int) &keyboard_interrupt, 0x8, 0x8F);
-	//asm("LIDT [%0]" :: "r" (&IDTR));
 	
 	return;
 }
 
-void send_EOI(int IRQ){
+void send_EOI(int IRQ){ //send end of interrupt to allow the PIC to send the next interrupt
 	outb(MASTER_PIC_COMMAND, 0x20);
 	if(IRQ >= 8)
 		outb(SLAVE_PIC_COMMAND, 0x20);

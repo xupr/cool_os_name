@@ -23,88 +23,56 @@ typedef struct {
 } keyboard_buffer_descriptor;
 
 void *keyboard_interrupt_entry;
-//char *keyboard_buffer;
-//int keyboard_buffer_index = 0;
 list *keyboard_buffers;
 char need_to_buffer = 0;
 static int status = 0;
 static key_state state = KEY_DOWN;
 
-//void (*KEYBOARD_BEHAVIOR[256][2])(scan_code_set3 scan_code, key_state state);
 list *KEYBOARD_BEHAVIOR[256];
 scan_code_set3 COMMAND_KEYS[5] = {0, 0, 0, 0, 0};
 
-void input(char *buffer, int length, int screen_index){
-//	print(itoa(screen_index));
-//	print("\n");
+void input(char *buffer, int length, int screen_index){ //get input from keyboard
 	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, screen_index);
 	keyboard_buffer->need_to_buffer = 1;
-	//print("kappa123");
-/*	print(itoa(keyboard_buffer_index));
-	print("\n");
-	print(itoa(length));
-	print("\n");
-*/	
-	//asm("cli");
-	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer){
-	//	asm("sti;hlt;cli");
+	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer)
 		asm("hlt");
-		/*if(get_current_process() == 0)
-			print("-");
-		if(get_current_process() == 1)
-			print("+");*/
-		//print(itoa(screen_index));
-		//print("\n");
-	//	if(keyboard_buffer_index > 0 && keyboard_buffer[keyboard_buffer_index - 1] == '\n')
-	//		break;
-	}
-	//asm("sti");
-	//need_to_buffer = 0;
-	//print("kappa123");
+
 	memcpy(buffer, keyboard_buffer->keyboard_buffer, keyboard_buffer->keyboard_buffer_index);
 	buffer[keyboard_buffer->keyboard_buffer_index] = '\0';
 	keyboard_buffer->keyboard_buffer_index = 0;
 }
 
-void buffer_char(scan_code_set3 scan_code, key_state state){
+void buffer_char(scan_code_set3 scan_code, key_state state){ //buffer a char if needed
 	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, get_current_screen_index());
 	if(keyboard_buffer->need_to_buffer){
 		if(state == KEY_UP) //don't do anything on key release
 			return;
 
-		//char s[2] = {0, 0};
 		switch(COMMAND_KEYS[0]){
 			case SCS3_LSHIFT:;
 			case SCS3_RSHIFT:;
 				char c = scancode_set3[scan_code];
 				if(c > 0x60 && c < 0x7B)
 					c -= 0x20;
-				//if(c > 0x)
 				else if(c > 0x26 && c < 0x3E)
 					c = SHIFT_ASCII[c-0x27];
 				else if(c > 0x5A && c < 0x5E)
 					c = SHIFT_ASCII[c-0x44];
-				//s[0] = c;
 				keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = c;
 				++keyboard_buffer->keyboard_buffer_index;
-				//print(s);
 				break;
 			case 0:;
 				keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = scancode_set3[scan_code];
 				++keyboard_buffer->keyboard_buffer_index;
-				if(scancode_set3[scan_code] == '\n'){
+				if(scancode_set3[scan_code] == '\n')
 					keyboard_buffer->need_to_buffer = 0;
-					//print("kappa123?\n");
-				}
-				//s[0] = scancode_set3[scan_code];
-				//print(s);
 				break;
 		}
 		return;
 	}
 }
 
-void print_char(scan_code_set3 scan_code, key_state state){
+void print_char(scan_code_set3 scan_code, key_state state){ //print a char
 	if(state == KEY_UP) //don't do anything on key release
 		return;
 
@@ -133,7 +101,7 @@ void print_char(scan_code_set3 scan_code, key_state state){
 	return;
 }
 
-void keyboard_command_char(scan_code_set3 scan_code, key_state state){
+void keyboard_command_char(scan_code_set3 scan_code, key_state state){ //add/remove a command char to the keyboard commands buffer
 	int i = 0;
 	if(state == KEY_DOWN){
 		while(COMMAND_KEYS[i++] != 0);
@@ -145,7 +113,7 @@ void keyboard_command_char(scan_code_set3 scan_code, key_state state){
 	return;
 }
 
-void switch_screens_command(scan_code_set3 scan_code, key_state state){
+void switch_screens_command(scan_code_set3 scan_code, key_state state){ //switch screens if needed
 	if(state == KEY_DOWN)
 		return;
 	
@@ -167,7 +135,7 @@ void switch_screens_command(scan_code_set3 scan_code, key_state state){
 	}
 }
 
-void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){
+void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){ //scroll single lines
 	if(state == KEY_DOWN){
 		switch(scan_code){
 			case SCS3_UP:
@@ -186,7 +154,7 @@ void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){
 	}
 }
 
-void keyboard_backspace_command(scan_code_set3 scan_code, key_state state){
+void keyboard_backspace_command(scan_code_set3 scan_code, key_state state){ //scroll multiple lines
 	if(state != KEY_DOWN)
 		return;
 	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, get_current_screen_index());
@@ -196,61 +164,9 @@ void keyboard_backspace_command(scan_code_set3 scan_code, key_state state){
 	}
 }
 
-void init_keyboard_behavior(void){
+void init_keyboard_behavior(void){ //add keyboard events to relevent chars
 	int i;
-	for(i = 0; i < 256; KEYBOARD_BEHAVIOR[i++] = create_list())i;
-	/*KEYBOARD_BEHAVIOR[SCS3_A][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_B][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_C][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_D][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_E][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_F][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_G][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_H][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_I][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_J][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_K][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_L][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_M][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_N][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_O][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_P][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_Q][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_R][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_S][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_T][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_U][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_W][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_X][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_Y][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_Z][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_0][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_1][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_2][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_3][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_4][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_5][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_6][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_7][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_8][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_9][0] = print_char;	
-	KEYBOARD_BEHAVIOR[SCS3_TILDA][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_MINUS][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_EQUALS][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_BACKSLASH][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_BACKSPACE][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_SPACE][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_OPENBRACE][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_CLOSEBRACE][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_SEMICOLON][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_APOSTROPHE][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_COMMA][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_DOT][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_SLASH][0] = print_char;
-	KEYBOARD_BEHAVIOR[SCS3_ENTER][0] = print_char;
-
-	KEYBOARD_BEHAVIOR[SCS3_LSHIFT][0] = keyboard_command_char;
-	KEYBOARD_BEHAVIOR[SCS3_RSHIFT][0] = keyboard_command_char;*/
+	for(i = 0; i < 256; KEYBOARD_BEHAVIOR[i++] = create_list());
 	add_keyboard_event(SCS3_A, print_char);
 	add_keyboard_event(SCS3_B, print_char);
 	add_keyboard_event(SCS3_C, print_char);
@@ -369,14 +285,12 @@ void init_keyboard_behavior(void){
 	return;
 }
 
-void add_keyboard_event(scan_code_set3 scan_code, void *event_handler){
-	//KEYBOARD_BEHAVIOR[scan_code][1] = event_handler;
+void add_keyboard_event(scan_code_set3 scan_code, void *event_handler){ //add keyboard event to a char
 	add_to_list(KEYBOARD_BEHAVIOR[scan_code], event_handler);
 	return;
 }
 
-void init_keyboard(void){
-	//keyboard_buffer = (char *)malloc(sizeof(char)*KEYBOARD_BUFF_SIZE);
+void init_keyboard(void){ //initialize the keyboards
 	keyboard_buffers = create_list();
 	int i;
 	for(i = 0; i < 4; ++i){
@@ -397,57 +311,21 @@ void init_keyboard(void){
 	return;
 }
 
-void keyboard_interrupt(void){
-	//print("shmolik");
-	//inb(PS2_STATUS_REGISTER);
-	//inb(PS2_DATA_REGISTER);
-	//outb(PS2_DATA_REGISTER, 0);
-	//scancode_set3[0];
+void keyboard_interrupt(void){ //handle keyboard interrupts
 	if(status == 1){
 		if(inb(PS2_DATA_REGISTER) == 0xFA){	
 			status = 2;
 			outb(PS2_DATA_REGISTER, 3); //set scan code to set 3
 		}
 	}else if(status == 2){
-		if(inb(PS2_DATA_REGISTER) == 0xFA){
+		if(inb(PS2_DATA_REGISTER) == 0xFA)
 			status = 3;
-			//outb(PS2_DATA_REGISTER, 0xF0);
-		}
-	/*}else if(status == 5){
-		char scan_code[2] = {0x30 + inb(PS2_DATA_REGISTER), 0};
-		print(scan_code);
-		status = 0;
-	}else if(status == 3){
-		if(inb(PS2_DATA_REGISTER) == 0xFA){
-			print("a");		
-			status = 4;
-			outb(PS2_DATA_REGISTER, 0);
-		}
-	}else if(status == 4){
-		if(inb(PS2_DATA_REGISTER) == 0xFA){
-			print("c");
-			status = 5;
-			//outb(PS2_DATA_REGISTER, 0xF0);
-		}*/
 	}else{
-	/*char c = inb(PS2_DATA_REGISTER);
-	if(c == 0xF0)
-		c = inb(PS2_DATA_REGISTER);
-	if(c == 0x1C)
-		print("a");
-	else{
-		char s[2] = {c, 0};
-		print(s);
-	}*/
 		unsigned char c = inb(PS2_DATA_REGISTER);
 		if(c == 0xF0)
 			state = KEY_UP;
-			//print("doda");
 		else{
-		//	char s[2] = {scancode_set3[c], 0};
-		//	print(s);
 			int i = 0;
-			//for(; i < 2 && KEYBOARD_BEHAVIOR[c][i] != 0; (KEYBOARD_BEHAVIOR[c][i++])(c, state));
 			list_node *key_event = KEYBOARD_BEHAVIOR[c]->first;
 			while(key_event != 0){
 				((void (*)(scan_code_set3, key_state))key_event->value)(c, state);

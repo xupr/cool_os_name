@@ -15,115 +15,59 @@ GLOBAL BOOT
 
 SECTION .boot			;be in memory after it is been loaded
 BOOT:
-MOV AX, CS
-MOV DS, AX
-MOV SS, AX
-MOV ES, AX
-MOV AX, 0X7C0
-ADD AX, 0X20
-MOV SP, AX
-MOV SI, HelloString ;Store string pointer to SI
-CALL PrintString	;Call print string procedure.
+	MOV AX, CS ;set all segment selectors to cs
+	MOV DS, AX
+	MOV SS, AX
+	MOV ES, AX
+	MOV AX, 0X7C0 ;set up a stack
+	ADD AX, 0X20
+	MOV SP, AX
+	;MOV SI, HelloString ;Store string pointer to SI
+	;CALL PrintString	;Call print string procedure.
 
-MOV DI, memory_map
-CALL get_memory_map
-MOV [memory_map_length], AX
+	MOV DI, memory_map ;get the memory map
+	CALL get_memory_map
+	MOV [memory_map_length], AX
 
-;CALL LoadKernel
-MOV AX, 0X2401
-INT 0X15
-JC A20Failed
-MOV SI, HelloString ;Store string pointer to SI
-CALL PrintString	;Call print string procedure.
+	;CALL LoadKernel
+	MOV AX, 0X2401 ;initialize the A20 line to have access to 32 bit addresses
+	INT 0X15
+	JC A20Failed
+	;MOV SI, HelloString ;Store string pointer to SI
+	;CALL PrintString	;Call print string procedure.
 
-XOR EAX, EAX
-MOV AX, DS
-SHL EAX, 4
-ADD EAX, gdt
-MOV [offset], AX
-LGDT [gdt_description_structure]
+	XOR EAX, EAX ;load the gdt
+	MOV AX, DS
+	SHL EAX, 4
+	ADD EAX, gdt
+	MOV [offset], AX
+	LGDT [gdt_description_structure]
 
-MOV EAX, CR0
-OR AL, 1
-MOV CR0, EAX
+	MOV EAX, CR0 ;enter protected mode
+	OR AL, 1
+	MOV CR0, EAX
 
-JMP 0x8:flush_selectors
+	JMP 0x8:flush_selectors ;change the segments selectors to the new ones from the gdt
 
 [BITS 32]
 flush_selectors:
-MOV AX, 0x10
-MOV DS, AX
-MOV SS, AX
-MOV ES, AX
-MOV GS, AX
-MOV FS, AX
+	MOV AX, 0x10
+	MOV DS, AX
+	MOV SS, AX
+	MOV ES, AX
+	MOV GS, AX
+	MOV FS, AX
 
-CALL load_kernel
-[BITS 32]
-PUSH memory_map
-PUSH memory_map_length
-JMP 0x100000
+	CALL load_kernel ;load the kernel to memory
+	PUSH memory_map ;push the parameters to the kernel
+	PUSH memory_map_length
+	JMP 0x100000 ;jump to the kernel
 
 [BITS 16]
 A20Failed:
-JMP $
+	JMP $
 
-
-PrintCharacter:	;Procedure to print character on screen
-	;Assume that ASCII value is in register AL
-MOV AH, 0x0E	;Tell BIOS that we need to print one charater on screen.
-MOV BH, 0x00	;Page no.
-MOV BL, 0x07	;Text attribute 0x07 is lightgrey font on black background
-
-INT 0x10	;Call video interrupt
-RET		;Return to calling procedure
-
-
-
-PrintString:	;Procedure to print string on screen
-	;Assume that string starting pointer is in register SI
-
-next_character:	;Lable to fetch next character from string
-MOV AL, [SI]	;Get a byte from string and store in AL register
-INC SI		;Increment SI pointer
-OR AL, AL	;Check if value in AL is zero (end of string)
-JZ exit_function ;If end then return
-CALL PrintCharacter ;Else print the character which is in AL register
-JMP next_character	;Fetch next character from string
-exit_function:	;End label
-RET		;Return from procedure
-
-;LoadKernel:
-;	MOV AH, 0 ;clear floppy
-;	MOV DL, 0
-
-	;INT 0X13
-	;JC LoadKernel
-
-;retry:
-;	MOV AX, 0x1000 ;address
-;	MOV ES, AX 
-;	XOR BX, BX ;address ES:BX
-;	MOV AH, 0x2 
-;	MOV AL, 128 ;sector count
-;	MOV CH, 0 ;cylinder
-;	MOV CL, 2 ;sector number
-;	MOV DH, 0 ;head number
-;	MOV DL, 0x80 ;drive number
-;
-;	INT 0x13
-;	JC retry
-;	;PUSH ES
-;	;PUSH BX
-;	;RETF
-;	RET
-;failed:
-;	MOV SI, Fail
-;	CALL PrintString
-;
-;	RET
-
-load_kernel:
+load_kernel: ;load the kernel from the hard drive to ram
 	[BITS 32]
 	MOV AL, 0xE0
 	MOV DX, ATA_DRIVE_REGISTER_PORT	
@@ -174,7 +118,7 @@ load_kernel_test_DRQ:
 	RET
 
 [BITS 16]
-get_memory_map:
+get_memory_map: ;get the memory map structure from the BIOS
 	MOV EAX, 0
 	PUSH EAX
 	XOR BX, BX
@@ -196,8 +140,7 @@ get_memory_map_loop:
 	JMP get_memory_map_loop
 
 get_memory_map_error:
-	MOV SI, Fail
-	CALL PrintString
+	JMP $
 
 get_memory_map_exit:
 	POP EAX
@@ -218,10 +161,11 @@ STRUC gdt_descriptor
 	.flags_limit_high resb 1
 	.base_high resb 1
 ENDSTRUC 
-gdt:
-	TIMES 8 db 0
 
-	istruc gdt_descriptor
+gdt:
+	TIMES 8 db 0 ;first descriptor must be zeroed out
+
+	istruc gdt_descriptor ;ring 0 code segment
 		at gdt_descriptor.limit_low, dw 0xFFFF
 		at gdt_descriptor.base_low, dw 0x0000
 		at gdt_descriptor.base_mid, db 0x0
@@ -230,7 +174,7 @@ gdt:
 		at gdt_descriptor.base_high, db 0
 	iend
 
-	istruc gdt_descriptor
+	istruc gdt_descriptor ;ring 0 data segment
 		at gdt_descriptor.limit_low, dw 0xFFFF
 		at gdt_descriptor.base_low, dw 0x000
 		at gdt_descriptor.base_mid, db 0x0
@@ -239,7 +183,7 @@ gdt:
 		at gdt_descriptor.base_high, db 0
 	iend
 
-	istruc gdt_descriptor
+	istruc gdt_descriptor ;ring 3 code segment
 		at gdt_descriptor.limit_low, dw 0xFFFF
 		at gdt_descriptor.base_low, dw 0x0000
 		at gdt_descriptor.base_mid, db 0x0
@@ -248,7 +192,7 @@ gdt:
 		at gdt_descriptor.base_high, db 0
 	iend
 
-	istruc gdt_descriptor
+	istruc gdt_descriptor ;ring 3 data segment
 		at gdt_descriptor.limit_low, dw 0xFFFF
 		at gdt_descriptor.base_low, dw 0x000
 		at gdt_descriptor.base_mid, db 0x0
@@ -257,7 +201,7 @@ gdt:
 		at gdt_descriptor.base_high, db 0
 	iend
 	
-	istruc gdt_descriptor
+	istruc gdt_descriptor ;tss
 		at gdt_descriptor.limit_low, dw 104
 		at gdt_descriptor.base_low, dw 0
 		at gdt_descriptor.base_mid, db 0x0
@@ -265,15 +209,6 @@ gdt:
 		at gdt_descriptor.flags_limit_high, db 0b01000000
 		at gdt_descriptor.base_high, db 0
 	iend
-
-;	istruc gdt_descriptor
-;		at gdt_descriptor.limit_low, dw 0x1000
-;		at gdt_descriptor.base_low, dw 0x0000
-;		at gdt_descriptor.base_mid, db 0x3
-;		at gdt_descriptor.access, db 0b10010110
-;		at gdt_descriptor.flags_limit_high, db 0b01000000
-;		at gdt_descriptor.base_high, db 0
-;	iend
 
 gdt_description_structure:
 	size dw 47

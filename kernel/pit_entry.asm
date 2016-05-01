@@ -5,10 +5,10 @@ EXTERN jump_to_ring3
 SECTION .text
 
 pit_interrupt_entry:
-	MOV [save_eax], EAX
+	MOV [save_eax], EAX ;check if the interrupt came from user or kernel
 	MOV EAX, [ESP + 4]
 	TEST EAX, 3
-	JNE no_need_to_pad_stack
+	JNE no_need_to_pad_stack ;if it came from the kernel add 8 bytes bellow the interrupt data, else continue
 	SUB ESP, 8
 	MOV EAX, [ESP + 8]
 	MOV [ESP], EAX
@@ -23,11 +23,11 @@ no_need_to_pad_stack:
 	MOV EAX, [save_eax]
 	PUSHA
 	PUSH ESP
-	CALL pit_interrupt_handler
+	CALL pit_interrupt_handler ;call the scheduler
 	ADD ESP, 4
 	MOV EAX, [ESP + 36] ;check if moving to a different ring
 	TEST EAX, 3
-	JE clean_stack_padding
+	JE clean_stack_padding ;if returning to kernel clean 8 bytes from under the needed interrupt data, else change segment selector and return
 
 	MOV AX, [ESP + 48]
 	MOV DS, AX
@@ -41,7 +41,7 @@ no_need_to_pad_stack:
 clean_stack_padding:
 	POPA
 	MOV [save_eax], EAX
-	CMP DWORD [ESP + 12], 0
+	CMP DWORD [ESP + 12], 0 ;check if the kernel stack need to be changed, if so change and return else clean and return
 	JE no_need_to_change_kernel_stack
 	MOV [save_esp], EBX
 	MOV EBX, [ESP + 12] 

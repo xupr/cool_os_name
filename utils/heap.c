@@ -9,7 +9,7 @@ typedef struct _heap_memory_structure {
 	struct _heap_memory_structure *next;
 } heap_memory_structure;
 
-void init_heap(void){
+void init_heap(void){ //initialize the heap
 	heap_memory_structure *s = (heap_memory_structure *)HEAP;
 	s->free = 1;
 	s->size = -1;
@@ -17,16 +17,10 @@ void init_heap(void){
 	return;
 }
 
-void *malloc(unsigned int size){
+void *malloc(unsigned int size){ //allocate memory from the heap
 	heap_memory_structure *s = (heap_memory_structure *)HEAP;
-	while((s != 0) && (s->free != 1 || s->size < size)){ 
-		/*if(s->next > 0x300000){
-			print_on();
-			print("asdasdasd!");
-			print_off();
-		}*/
+	while((s != 0) && (s->free != 1 || s->size < size))
 		s = s->next;
-	}
 	if(s != 0){
 		if(s->size = -1)
 			s->size = size;
@@ -38,16 +32,10 @@ void *malloc(unsigned int size){
 		}
 		s->free = 0;
 	}	
-	/*if((void *)s + sizeof(heap_memory_structure) + size>0x300000){
-		print_on();
-		print("WTFFFFFFFFFFFFFFFF");
-		print_off();
-	}*/
-	/*print(itoa(s));*/
 	return (void *)s + sizeof(heap_memory_structure);
 }
 
-void free(void* heap_address){
+void free(void* heap_address){ //free memory from the heap
 	heap_memory_structure *s = heap_address - sizeof(heap_memory_structure);
 	s->free = 1;
 	return;

@@ -3,14 +3,14 @@
 #include "../headers/list.h"
 #include "../headers/string.h"
 
-list *create_list(void){
+list *create_list(void){ //creates a list
 	list *lst = (list *)malloc(sizeof(list));
 	lst->first = 0;
 	lst->length = 0;
 	return lst;
 }
 
-void add_to_list(list *lst, void *value){
+void add_to_list(list *lst, void *value){ //adds an item to a list
 	list_node *new_node = (list_node *)malloc(sizeof(list_node));
 	new_node->value = value;
 	new_node->next = 0;
@@ -26,7 +26,7 @@ void add_to_list(list *lst, void *value){
 	return;
 }
 
-void add_to_list_at(list *lst, void *value, int index){
+void add_to_list_at(list *lst, void *value, int index){ //adds an item to a list after another item
 	if(index > lst->length - 1){
 		add_to_list(lst, value);
 		return;
@@ -41,17 +41,14 @@ void add_to_list_at(list *lst, void *value, int index){
 		return;
 	}
 
-//	print("safta is love\n");
-//	print(itoa(lst->length));
 	list_node *temp_node = lst->first;
 	--index;
 	for(; index--; temp_node = temp_node->next);
-//	print(itoa((int)(temp_node->next->next)));
 	new_node->next = temp_node->next;
 	temp_node->next = new_node;
 }
 
-void remove_from_list(list *lst, void *value){
+void remove_from_list(list *lst, void *value){ //remove an item from a list
 	list_node *current = lst->first;
 	if(lst->length == 0)
 		return;
@@ -75,7 +72,7 @@ void remove_from_list(list *lst, void *value){
 	return;
 }
 
-void *get_list_element(list *lst, unsigned int index){
+void *get_list_element(list *lst, unsigned int index){ //get an item from a list
 	if(index >= lst->length) return 0;
 	list_node *current = lst->first;
 	for(; index--; current = current->next);

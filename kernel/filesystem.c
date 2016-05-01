@@ -31,19 +31,6 @@ typedef struct {
 
 static int get_free_block();
 
-/*
-disk memory structure:
-[bootloader|kernel  |bound blocks bitmap|inode block|file names block|files.......]
-[--512b----|1mb-512b|------1block-------|--1block---|------1block----|rest-of-disk]
-specs:
-block size = 16 sectors = 8kb
-inode size = 24b
-file name limit = 23 chars
-file size limit = 16mb
-files limit = 341 files
-max disk size = 5.3gb
-*/
-
 static unsigned char *bound_blocks_bitmap;
 static inode *inode_list;
 static unsigned char *file_names_list;
@@ -51,16 +38,12 @@ static int inode_count = BLOCK_SIZE*SECTOR_SIZE/sizeof(inode);
 static list *open_files_list;
 static int bitmap_length = BLOCK_SIZE*SECTOR_SIZE;
 
-void init_filesystem(void){
+void init_filesystem(void){ //initialize the file system structutes
 	bound_blocks_bitmap = (unsigned char *)malloc(BLOCK_SIZE*SECTOR_SIZE*sizeof(unsigned char));
 	ata_read_sectors(BOUND_BLOCKS_BITMAP, BLOCK_SIZE, bound_blocks_bitmap);			
 	if(~(*bound_blocks_bitmap) & 0b111){
 		print("initializing the bound block bitmap\n");
-		//print(itoa(*bound_blocks_bitmap));
 		*bound_blocks_bitmap = (*bound_blocks_bitmap) | 0b111;
-		//print(itoa(*bound_blocks_bitmap));
-		//int i;
-		//for(i = 0; i < 272; *(bound_blocks_bitmap+i++) = 0xFF);
 		ata_write_sectors(BOUND_BLOCKS_BITMAP, BLOCK_SIZE, bound_blocks_bitmap);
 	}
 
@@ -72,7 +55,7 @@ void init_filesystem(void){
 	open_files_list = create_list();
 }
 
-void get_inode(char *file_name, void *buff){
+void get_inode(char *file_name, void *buff){ //copy the inode to the buffer
 	int inode_index;
 	for(inode_index = 0; inode_index<inode_count; ++inode_index){
 		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
@@ -84,7 +67,7 @@ void get_inode(char *file_name, void *buff){
 	*(char *)buff = -1;
 }
 
-int get_file_size(char *file_name){
+int get_file_size(char *file_name){ //return file size or -1 if doesnt exist
 	int inode_index;
 	for(inode_index = 0; inode_index<inode_count; ++inode_index){
 		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
@@ -95,12 +78,12 @@ int get_file_size(char *file_name){
 	return -1;
 }
 
-int get_inode_index_of(char *file_name){
+int get_inode_index_of(char *file_name){ 
 	int *inode_index_list = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
 	char *current_path = strtok(file_name, "/");	
 	int inode_index = 0;
 
-	while(current_path){
+	while(current_path){ //runs from the root directory to the file to find in, terminates when got the file or the directory/file don't exists
 		ata_read_sectors(inode_list[inode_index].address_block, BLOCK_SIZE, (char *)inode_index_list);
 		int i, length = BLOCK_SIZE*SECTOR_SIZE/sizeof(int);
 		for(i = 0; i < length; ++i){
@@ -120,7 +103,7 @@ int get_inode_index_of(char *file_name){
 		current_path = strtok(0, "/");
 	}
 	
-	while(current_path){
+	while(current_path){ //runs the rest of the path creating all directories/files needed
 		int i, length = BLOCK_SIZE*SECTOR_SIZE/sizeof(inode);
 		for(i = 0; i < length; ++i){
 			if(!inode_list[i].bound)
@@ -183,7 +166,7 @@ FILE open(char *file_name){
 	int inode_index = get_inode_index_of(file_name);
 	list_node *current_file_descriptor_node = open_files_list->first;
 	FILE file_descriptor_index = 0;
-	while(current_file_descriptor_node){
+	while(current_file_descriptor_node){ //check if file already open
 		file_descriptor *current_open_file = (file_descriptor *)current_file_descriptor_node->value;
 		if(current_open_file->inode_index == inode_index && current_open_file->used)
 			return file_descriptor_index;
@@ -194,7 +177,7 @@ FILE open(char *file_name){
 	
 	current_file_descriptor_node = open_files_list->first;
 	file_descriptor_index = 0;
-	while(current_file_descriptor_node){ //getting the file index
+	while(current_file_descriptor_node){ //getting the file descriptor index
 		file_descriptor *current_file_descriptor = (file_descriptor *)current_file_descriptor_node->value; 
 		if(!current_file_descriptor->used)
 			break;
@@ -204,7 +187,7 @@ FILE open(char *file_name){
 	}
 
 	file_descriptor *file;
-	if(!current_file_descriptor_node){
+	if(!current_file_descriptor_node){ //creating if doesnt exist
 		file = (file_descriptor *)malloc(sizeof(file_descriptor));	
 		add_to_list(open_files_list, file);
 	}else
@@ -221,102 +204,7 @@ FILE open(char *file_name){
 	return file_descriptor_index; 
 }
 
-/*FILE open(char *file_name){
-	int inode_index;
-//	print("\n");
-	print("opening ");
-	print(file_name);
-	print("\n");
-	list_node *current_file = open_files_list->first;
-	int index = 0;
-	while(current_file){ //checking if file already open
-		if(((file_descriptor *)current_file->value)->used && !strcmp(((file_descriptor *)current_file->value)->inode->name_address + file_names_list, file_name)){
-			print("file already open\n");
-			return index;
-		}
-		current_file = current_file->next;
-		++index;
-	}
-
-	list_node *current_file_descriptor_node = open_files_list->first;
-	FILE file_descriptor_index = 0;
-	while(current_file_descriptor_node){ //getting the file index
-		file_descriptor *current_file_descriptor = (file_descriptor *)current_file_descriptor_node->value; 
-		if(!current_file_descriptor->used)
-			break;
-
-		++file_descriptor_index;
-		current_file_descriptor_node = current_file_descriptor_node->next;
-	}
-
-	file_descriptor *file;
-	if(!current_file_descriptor_node){
-		file = (file_descriptor *)malloc(sizeof(file_descriptor));	
-		add_to_list(open_files_list, file);
-	}else
-		file = (file_descriptor *)current_file_descriptor_node->value;
-
-	for(inode_index = 0; inode_index<inode_count; ++inode_index){ //checking if exists
-		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
-			[>print("kappa123 ");
-			print(file_names_list + (inode_list+inode_index)->name_address);
-			print("\n");<]
-			//print(((inode_list+inode_index)->name_address+file_names_list));
-			file->inode = (inode *)(inode_list+inode_index);
-			file->physical_address_block = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
-			//print(itoa(file->inode->address_block));
-			ata_read_sectors(file->inode->address_block, BLOCK_SIZE, (char *)file->physical_address_block);
-			file->file_data_blocks_list = create_list();
-			file->file_offset = 0;
-			file->used = 1;
-			return file_descriptor_index; 
-		}
-	}
-	
-	//print("1");
-	for(inode_index = 0; inode_index<inode_count; ++inode_index){ //creating
-		if(!(inode_list+inode_index)->bound){
-			inode *file_node = inode_list+inode_index;
-			file_node->bound = 1;
-			file_node->type = REGULAR_FILE;
-			file_node->access = 0700;
-			file_node->size = 0;
-			file_node->address_block = get_free_block();
-			int name_address = 0;
-			//print("2");
-			//while(strcmp(file_names_list+name_address++, "\0"));
-			while(*(file_names_list + name_address++) || *(file_names_list + name_address));
-			//print(itoa(name_address));
-			//print("3");
-			if(name_address == 1)
-				--name_address;
-			file_node->name_address = name_address;
-			strcpy(file_names_list+name_address, file_name);
-			ata_write_sectors(FILE_NAMES_LIST, BLOCK_SIZE, file_names_list);
-			file_node->creation_date = 0;
-			file_node->update_date = 0;
-			file_node->creator_uid = get_current_euid();
-			ata_write_sectors(INODE_LIST, BLOCK_SIZE, (char *)inode_list);
-			//print("4");
-
-			//print("5");
-			file->inode = file_node;
-			file->physical_address_block = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE*sizeof(char));
-			//print(itoa(file->physical_address_block));
-			ata_read_sectors(file_node->address_block, BLOCK_SIZE, (char *)file->physical_address_block);
-			file->file_data_blocks_list = create_list();
-			file->file_offset = 0;
-			file->used = 1;
-			//print("6");
-			//print("7");
-			return file_descriptor_index; 
-		}
-	}
-	
-	return -1;
-}*/
-
-int get_free_block(void){
+int get_free_block(void){ //get index of a free block and marks it as used
 	int bitmap_index, mask;
 	for(bitmap_index = 0; bitmap_index<bitmap_length; ++bitmap_index){
 		for(mask = 1; mask<256; mask = mask<<1){
@@ -336,7 +224,7 @@ int get_free_block(void){
 	return -1;
 }
 
-int write(FILE file_descriptor_index, char *buff, int count){
+int write(FILE file_descriptor_index, char *buff, int count){ //write to file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	print("writing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
@@ -353,11 +241,6 @@ int write(FILE file_descriptor_index, char *buff, int count){
 		end_of_file = 1;
 	}
 	
-	//print("\n");
-	//print(buff);
-	//print(itoa(block_index));
-	//print("\n");
-	//print(itoa(blocks_to_write));
 	for(block_index = 0; blocks_to_write--; ++block_index){
 		list_node *current = current_file_descriptor->file_data_blocks_list->first;
 		file_data_block *current_file_data_block = 0;
@@ -380,7 +263,6 @@ int write(FILE file_descriptor_index, char *buff, int count){
 				set_vga_colors(WHITE, RED);
 				print("data block not allocated\n");
 				*(current_file_descriptor->physical_address_block+block_index) = get_free_block();
-				//print(itoa((current_file_descriptor->inode->address_block)));
 				ata_write_sectors(current_file_descriptor->inode->address_block, BLOCK_SIZE, (char *)current_file_descriptor->physical_address_block);
 			}
 
@@ -390,7 +272,6 @@ int write(FILE file_descriptor_index, char *buff, int count){
 		}
 
 		int bytes_to_write = (count - 1)%(BLOCK_SIZE*SECTOR_SIZE) + 1;
-		//print(itoa(current_file_data_block->data+data_offset));
 		memcpy(current_file_data_block->data+data_offset, buff+buff_offset, bytes_to_write);
 		if(end_of_file && bytes_to_write == count)
 			*(current_file_data_block->data+data_offset+count-1) = -1;
@@ -404,7 +285,7 @@ int write(FILE file_descriptor_index, char *buff, int count){
 	return temp_count;
 }
 
-int read(FILE file_descriptor_index, char *buff, int count){	
+int read(FILE file_descriptor_index, char *buff, int count){ //read from file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	print("reading ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
@@ -415,7 +296,6 @@ int read(FILE file_descriptor_index, char *buff, int count){
 	int block_index = current_file_descriptor->file_offset/(BLOCK_SIZE*SECTOR_SIZE);
 	int data_offset = current_file_descriptor->file_offset%(BLOCK_SIZE*SECTOR_SIZE), buff_offset = 0;
 	int temp_count = count;
-	//print(itoa(blocks_to_read));
 	for(block_index = 0; blocks_to_read--; ++block_index){
 		list_node *current = current_file_descriptor->file_data_blocks_list->first;
 		file_data_block *current_file_data_block = 0;
@@ -437,19 +317,13 @@ int read(FILE file_descriptor_index, char *buff, int count){
 			if(!*(current_file_descriptor->physical_address_block+block_index)){
 				*(buff+buff_offset) = -1;
 				return;
-/*				print("data block not allocated\n");
-				*(current_file_descriptor->physical_address_block+block_index) = get_free_block();
-				print(itoa((current_file_descriptor->inode->address_block)*BLOCK_SIZE));
-				ata_write_sectors(current_file_descriptor->inode->address_block, BLOCK_SIZE, (char *)current_file_descriptor->physical_address_block);
-*/			}
-			//print(itoa(*(current_file_descriptor->physical_address_block)));
+			}
 			current_file_data_block->data = (char *)malloc(BLOCK_SIZE*SECTOR_SIZE*sizeof(char));
 			ata_read_sectors(*(current_file_descriptor->physical_address_block+block_index), BLOCK_SIZE, current_file_data_block->data);			
 			add_to_list(current_file_descriptor->file_data_blocks_list, current_file_data_block);
 		}
 
 		int bytes_to_read = (count - 1)%(BLOCK_SIZE*SECTOR_SIZE) + 1;
-		//print(itoa(current_file_data_block->data+data_offset));
 		memcpy(buff+buff_offset, current_file_data_block->data+data_offset, bytes_to_read);
 		count -= bytes_to_read;
 		data_offset = 0;
@@ -460,32 +334,26 @@ int read(FILE file_descriptor_index, char *buff, int count){
 	return temp_count;
 }
 
-void seek(FILE file_descriptor_index, int new_file_offset){
+void seek(FILE file_descriptor_index, int new_file_offset){ //seeks from beginning of a file
 	((file_descriptor *)get_list_element(open_files_list, file_descriptor_index))->file_offset = new_file_offset;
 }
 
-void execute(char *file_name, int screen_index, int argc, char **argv){
+void execute(char *file_name, int screen_index, int argc, char **argv){ //executes file
 	cli();
 	print("executing ");
 	print(file_name);
 	print("\n");
 	FILE file_descriptor_index = open(file_name);
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
-	//print(itoa(current_file_descriptor->inode->size));
 	char *buff = (char *)malloc(current_file_descriptor->inode->size);
 	current_file_descriptor->file_offset = 0;
 	read(file_descriptor_index, buff, current_file_descriptor->inode->size);
 	close(file_descriptor_index);
-	/*char **argv = (char **)malloc(sizeof(char *));
-	argv[0] = (char *)malloc(sizeof(char)*2);
-	strcpy(argv[0], "a");
-	argv[0][1] = '\0';*/
 	create_process(buff, current_file_descriptor->inode->size, screen_index, file_name, argc, argv);
 	sti();
-//	asm("call eax" : : "a"(buff));
 }
 
-void close(FILE file_descriptor_index){
+void close(FILE file_descriptor_index){ //closes file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	print("closing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);

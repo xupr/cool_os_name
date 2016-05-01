@@ -5,7 +5,7 @@ EXTERN keyboard_interrupt
 SECTION .text
 keyboard_interrupt_entry:
 	PUSHA
-	CALL keyboard_interrupt
+	CALL keyboard_interrupt ;call the keyboard interrupt handler
 	POPA
 	IRET
 

@@ -40,21 +40,14 @@ typedef struct {
 	page_directory_entry *page_table;
 } page_table_descriptor;
 
-static page_directory_entry kernel_page_directory[1024]__attribute__((aligned(PAGE_SIZE)));
-static page_table_entry kernel_page_table[8*1024]__attribute__((aligned(PAGE_SIZE)));
+static page_directory_entry kernel_page_directory[1024]__attribute__((aligned(PAGE_SIZE))); //kernel page directories
+static page_table_entry kernel_page_table[8*1024]__attribute__((aligned(PAGE_SIZE))); //kernel page tables
 static list *page_table_list;
-/*static memory_page_block kernel_pages = {1, 1, (void *)0x100000, 0x500000, KERNEL_PID};
-static memory_page_block first_page_block = {0, 0, (void *)0, 0, 0};
-static list_node first_memory_page_map = {&first_page_block, 0};
-static list_node kernel_memory_page_map = {&kernel_pages, &first_memory_page_map};
-static list _memory_page_map = {&kernel_memory_page_map, 2};*/
 static list *memory_page_map;
-static print_shit = 0;
 
 static PAGE_TABLE kernel_page_table_index = 0;
 
 void dump_memory_map(void){
-	print_on();
 	print("\n");
 	set_tab_size(12);
 	print("page table\tbase\tlimit\n");
@@ -72,43 +65,24 @@ void dump_memory_map(void){
 	}
 	set_tab_size(8);
 	print("\n");
-	print_off();
 }
 
 static int compare_memory_blocks(void *a, void *b){
 	unsigned int c = (unsigned int)(((memory_information_block *)a)->base), d = (unsigned int)(((memory_information_block *)b)->base);
-/*	print(itoa(c));
-	print(":");
-	print(itoa(d));
-	print("  ");
-*/	if(c > d)
+	if(c > d)
 		return 1;
 	return -2;
 }
 
-void init_memory(char *memory_map_length, void *memory_map){
-	memory_page_map = create_list();
+void init_memory(char *memory_map_length, void *memory_map){ 
+	memory_page_map = create_list(); //initialize the memory map
 	int i, j;
-/*	for(i = 0; i < *memory_map_length; ++i){ //won't work because the list is unsorted, could sort first.
-		memory_information_block *current_block = (memory_information_block *)memory_map+i;
-		print(itoa((int)current_block->base));
-		print("   ");
-		print(itoa(current_block->limit));
-		print("   ");
-		print(itoa(current_block->type));
-		print("\n");
-	}
-*/	sort(memory_map, sizeof(memory_information_block), *memory_map_length, compare_memory_blocks);
-	for(i = 0; i < *memory_map_length; ++i){ //won't work because the list is unsorted, could sort first.
+	sort(memory_map, sizeof(memory_information_block), *memory_map_length, compare_memory_blocks);
+	for(i = 0; i < *memory_map_length; ++i){ 
 		memory_information_block *current_block = (memory_information_block *)memory_map+i;
 		memory_page_block *page_block = (memory_page_block *)malloc(sizeof(memory_page_block));
 		if(current_block->type == USABLE && (int)current_block->base >= 0x100000){
 			if((int)current_block->base >= 0x100000 && (int)current_block->base < 0x600000){
-				/*first_page_block.bound = 0;
-				first_page_block.pinned = 0;
-				first_page_block.base = (void *)0x600000;
-				first_page_block.limit = (int)current_block->base + current_block->limit - 0x600000;
-				first_page_block.process = KERNEL_PIs(itoa(((memory_information_block *)a)->base))ge_block;*/
 				memory_page_block *kernel_page_block = (memory_page_block *)malloc(sizeof(memory_page_block));
 				kernel_page_block->bound = 1;
 				kernel_page_block->pinned = 1;
@@ -147,133 +121,52 @@ void init_memory(char *memory_map_length, void *memory_map){
 	}
 	
 	print("--memory map inititalized\n");
-
-	//print(itoa((int)kernel_page_table));
-	//print("\n");
-	//print(itoa(sizeof(page_table_entry)));
-	//page_directory_entry d = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
-	//print(itoa(*((int *)&d)));
-	//print(itoa(((int)kernel_page_table)>>12));
-/*	for(i = 0; i < 8; ++i){
-		page_directory_entry current_page_directory;
-		current_page_directory.page_table = ((int)kernel_page_table+4*1024*i)>>12;
-		current_page_directory.available = 0;
-		current_page_directory.ignored = 0;
-		current_page_directory.size = 0;
-		current_page_directory.zero = 0;
-		current_page_directory.accessed = 0;
-		current_page_directory.cache_disable = 0;
-		current_page_directory.write_through = 1;
-		current_page_directory.user = 0;
-		current_page_directory.read_write = 1;
-		current_page_directory.present = 1;
-		kernel_page_directory[i] = current_page_directory;
-		for(j = 0; j < 1024; ++j){
-			page_table_entry current_page_table;
-			current_page_table.physical_page = (int)(4*1024*(i*1024+j))>>12;
-			current_page_table.available = 0;
-			current_page_table.ignored = 0;
-			current_page_table.zero = 0;
-			current_page_table.dirty = 0;
-			current_page_table.accessed = 0;
-			current_page_table.cache_disable = 0;
-			current_page_table.write_through = 1;
-			current_page_table.user = 0;
-			current_page_table.read_write = 1;
-			current_page_table.present = 1;
-			kernel_page_table[i*1024 + j] = current_page_table;
-		}
-	}
-
-	page_directory_entry current_page_directory;
-	current_page_directory.ignored = 1;
-	for(; i < 1024; kernel_page_directory[i++] = current_page_directory);
-*/		
-	//asm("mov cr3, eax; mov eax, cr0; or eax, 0x80000000; mov cr0, eax" : : "a"(kernel_page_directory));
-	page_table_list = create_list();
-//	page_table_descriptor *os_page_table = (page_table_descriptor *)malloc(sizeof(page_table_descriptor));
-//	os_page_table->bound = 1;
+	page_table_list = create_list(); //initialize kernel page table
 	PAGE_TABLE os_page_table_index = create_page_table();
 	identity_page(os_page_table_index, (void *)0, 32*1024*1024-1);
-//	add_to_list(page_table_list, os_page_table);
-//	asm("int 3");
 	switch_memory_map(kernel_page_table_index);
-	asm("mov eax, cr0; or eax, 0x80000000; mov cr0, eax");
+	asm("mov eax, cr0; or eax, 0x80000000; mov cr0, eax"); //enable paging
 	print("--paging initiailzed\n");
-	//create_page_table();
 }
 
 PAGE_TABLE create_page_table(){
 	cli();
-	print_on();
 	list_node *current = page_table_list->first;
 	char found = 0;
 	PAGE_TABLE page_table_index = 0;
 	page_table_descriptor *current_page_table_descriptor;
-	while(current != 0){
+	while(current != 0){ //found a not needed page table
 		if(!((page_table_descriptor *)current->value)->bound){
-			if(page_table_index == 8)
-				++print_shit;
-					/*if(page_table_index == 5)
-						dump_memory_map();*/
 			((page_table_descriptor *)current->value)->bound = 1;
-			/*print(itoa(page_table_index));
-			print("\n");*/
-			print_off();
 			sti();
 			return (PAGE_TABLE)page_table_index;
-			/*found = 1;
-			((page_table_descriptor *)current->value)->bound = 1;
-			current_page_table_descriptor = (page_table_descriptor *)current->value;
-			break;*/
 		}
 		
 		++page_table_index;
 		current = current->next;
 	}
 	
-	if(!found){
+	if(!found){ //if not found create one
 		current_page_table_descriptor = (page_table_descriptor *)malloc(sizeof(page_table_descriptor));
 		current_page_table_descriptor->page_table = (page_directory_entry *)malloc(2048*sizeof(page_directory_entry));
-		//print(itoa((int)(current_page_table_descriptor->page_table)));
-		//print("\n");
 		page_directory_entry *page_table_address = (page_directory_entry *)((int)current_page_table_descriptor->page_table & (int)(~0xFFF));
 		if(page_table_address < current_page_table_descriptor->page_table)
 			page_table_address = (page_directory_entry *)((char *)page_table_address + PAGE_SIZE);
 		current_page_table_descriptor->page_table = page_table_address;
-		//print(itoa((int)(current_page_table_descriptor->page_table)));
-		//print("\n");
 		current_page_table_descriptor->bound = 1;
 		add_to_list(page_table_list, current_page_table_descriptor);
 	}
 
-	//print(itoa(page_table_index));
-
-	int i;
+	int i; //zero the page table out
 	page_directory_entry current_page_directory;
 	current_page_directory.ignored = 1;
 	current_page_directory.present = 0;
-	/*print(itoa((int)kernel_page_directory));
-	print("\n");
-	print(itoa((int)current_page_table_descriptor->page_table));
-	print("\n");*/
 	for(i = 0; i < 1024; current_page_table_descriptor->page_table[i++] = current_page_directory);
-//	print("\n");
-//	print(itoa((int)current_page_directory.ignored));
-//	print(itoa((int)(current_page_table_descriptor->page_table + 1)));
-//	print("kappa\n");
-			/*print("ATTENTION:");
-			print(itoa(page_table_index));*/
-	/*print(itoa(page_table_index));
-	print("\n");*/
-print_off();
 	sti();
 	return page_table_index; 
-	//for
-	//print(itoa((unsigned int)current_page_table_descriptor));
 }
 
-void switch_memory_map(PAGE_TABLE page_table_index){
+void switch_memory_map(PAGE_TABLE page_table_index){ //switch to a different page table
 	cli();
 	page_table_descriptor *current_page_table_descriptor = get_list_element(page_table_list, (int)page_table_index);
 	asm("mov cr3, eax" : : "a"(current_page_table_descriptor->page_table));
@@ -287,20 +180,15 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 	int i;
 	int current_pages = 1024 - (((int)base>>12) & 0x3FF);
 	page_directory_entry *current_page_directory = (((page_table_descriptor *)get_list_element(page_table_list, page_table_index))->page_table + ((int)base>>22));
-//	print(itoa((int)current_page_directory));
-//	print("kappa\n");
 	for(i = 0; i++ < page_directories; ++current_page_directory){
 		page_table_entry *current_page_table;
-		if(current_page_directory->ignored){
-			//print("nope1\n");
+		if(current_page_directory->ignored){ //if a page directory does not exist, create one
 			current_page_table = (page_table_entry *)malloc(2048*sizeof(page_table_entry));
 			if((int)current_page_table & (int)(~0xFFF) > (int)current_page_table)
 				current_page_table = (page_table_entry *)((int)current_page_table & (int)(~0xFFF));
 			else
 				current_page_table = (page_table_entry *)(((int)current_page_table & (int)(~0xFFF)) + PAGE_SIZE);
 			
-//			print(itoa((int)current_page_table));
-//			print("\n");
 			current_page_directory->page_table = ((int)current_page_table)>>12;
 			current_page_directory->available = 0;
 			current_page_directory->ignored = 0;
@@ -321,16 +209,12 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 			for(i = 0; i < 1024; current_page_table[i++] = temp_page_table);
 		}
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12) + (((int)base>>12) & 0x3FF));
-//		print(itoa((int)current_page_table));
-//		print("a\n");
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
-			//print("321\n");
-			if(current_page_table->ignored){
-				//print("nope2\n");
+			if(current_page_table->ignored){ //if a page table does not exist, create one
 				list_node *current_memory_page_block = memory_page_map->first;
 				int index = 0;
-				while(current_memory_page_block){
+				while(current_memory_page_block){ //find a useable memory block
 					if(!((memory_page_block *)current_memory_page_block->value)->bound && \
 					(int)((memory_page_block *)current_memory_page_block->value)->base > 0x100000)
 						break;
@@ -340,24 +224,20 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 				}
 				
 				if(index < memory_page_map->length){
-					void *page_address;
+					void *page_address; //update the memory map
 					if(index != memory_page_map->length - 1 &&\
 					((memory_page_block *)(current_memory_page_block->next->value))->page_table == page_table_index){
-						/*print("safta1");*/
 						((memory_page_block *)current_memory_page_block->next->value)->base -= PAGE_SIZE;
 						page_address = ((memory_page_block *)current_memory_page_block->next->value)->base;
 						((memory_page_block *)current_memory_page_block->next->value)->limit += PAGE_SIZE;
 						((memory_page_block *)current_memory_page_block->value)->limit -= PAGE_SIZE;
 					}else if(index != 0 &&\
 					((memory_page_block *)get_list_element(memory_page_map, index - 1))->page_table == page_table_index){
-					//	memory_page_block *temp_page_block = (memory_page_block *)get_list_element(index - 1);
-						/*print("safta2");*/
 						((memory_page_block *)get_list_element(memory_page_map, index - 1))->limit += PAGE_SIZE;
 						page_address = ((memory_page_block *)current_memory_page_block->value)->base; 
 						((memory_page_block *)current_memory_page_block->value)->base += PAGE_SIZE;
 						((memory_page_block *)current_memory_page_block->value)->limit -= PAGE_SIZE;
 					}else{
-						/*print("safta3");*/
 						memory_page_block *temp_page_block = (memory_page_block *)malloc(sizeof(memory_page_block));
 						temp_page_block->bound = 1;
 						temp_page_block->pinned = 0;
@@ -365,23 +245,18 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 						temp_page_block->limit = PAGE_SIZE;
 						temp_page_block->page_table = page_table_index;
 						add_to_list_at(memory_page_map, temp_page_block, index);
-//						print(itoa(((memory_page_block *)get_list_element(memory_page_map, index))->process));
-//						print("\n");
 						page_address = temp_page_block->base;
 						((memory_page_block *)current_memory_page_block->value)->base += PAGE_SIZE;
 						((memory_page_block *)current_memory_page_block->value)->limit -= PAGE_SIZE;
 					}
 
 				
-					if(((memory_page_block *)current_memory_page_block->value)->limit <= 0){
+					if(((memory_page_block *)current_memory_page_block->value)->limit <= 0){ //clean up if needed
 						remove_from_list(memory_page_map, current_memory_page_block->value);
 						free(current_memory_page_block);
 					}
-					
-					//print(itoa((int)page_address));
-					//print("o\n");
 
-					current_page_table->physical_page = (int)page_address>>12;
+					current_page_table->physical_page = (int)page_address>>12; //initialize the page table
 					current_page_table->available = 0;
 					current_page_table->ignored = 0;
 					current_page_table->zero = 0;
@@ -402,28 +277,19 @@ void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
 	sti();
 }
 
-void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base, int limit){	
+void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base, int limit){ //write into virtual memory	
 	cli();
 	int pages = (limit + ((int)base)%PAGE_SIZE - 1)/PAGE_SIZE + 1;
 	int page_directories = (limit + ((int)base)%0x400000 - 1)/0x400000 + 1;
 	page_directory_entry *current_page_directory = ((page_table_descriptor *)get_list_element(page_table_list, page_table_index))->page_table + ((int)base>>22);
-	//print(itoa((int)(((page_table_descriptor *)get_list_element(page_table_list, page_table_index))->page_table)));
-	//print("\n");
 	int i;
 	int current_pages = 1024 - (((int)base>>12) & 0x3FF);
 	for(i = 0; i++ < page_directories; ++current_page_directory){
-		//if(current_page_directory->ignored)
-			//print("wtf123\n");
 		page_table_entry *current_page_table;
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12)) + (((int)base>>12) & 0x3FF);
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
-			/*print(itoa(((current_page_table->physical_page)<<12)));*/
-			/*print(itoa(*source));*/
 			memcpy((char *)(((current_page_table->physical_page)<<12) + (int)base%0x1000), source, (limit - 1)%PAGE_SIZE + 1);
-			/*print(itoa(*(char *)((current_page_table->physical_page)<<12)));*/
-			/*print("\n");*/
-			/*print_off();*/
 			limit -= PAGE_SIZE;
 			source += PAGE_SIZE;
 		}
@@ -434,11 +300,9 @@ void write_virtual_memory(PAGE_TABLE page_table_index, char *source, void *base,
 	sti();
 }
 
-void identity_page(PAGE_TABLE page_table_index, void *base, int limit){
+void identity_page(PAGE_TABLE page_table_index, void *base, int limit){ //same as allocate_memory but insted of allocating from free space, allocates so that the physical address matches the virtual
 	cli();
-/*	void *base = (void *)KERNEL_BASE;
-	int limit = KERNEL_LIMIT;
-*/	int pages = (limit + ((int)base)%PAGE_SIZE - 1)/PAGE_SIZE + 1;
+	int pages = (limit + ((int)base)%PAGE_SIZE - 1)/PAGE_SIZE + 1;
 	int page_directories = (limit + ((int)base)%0x400000 - 1)/0x400000 + 1;
 	int i;
 	int current_pages = 1024 - (((int)base>>12) & 0x3FF);
@@ -473,8 +337,6 @@ void identity_page(PAGE_TABLE page_table_index, void *base, int limit){
 			for(i = 0; i < 1024; current_page_table[i++] = temp_page_table);
 		}
 		current_page_table = ((page_table_entry *)(current_page_directory->page_table<<12)) + (((int)base>>12) & 0x3FF);
-//		print(itoa((current_page_directory->page_table<<12)));
-//		print("a\n");
 		int j;
 		for(j = 0; j++ < current_pages && pages--; ++current_page_table){
 			if(current_page_table->ignored){
@@ -506,7 +368,7 @@ void free_page_table(PAGE_TABLE page_table_index){
 	page_table_entry empty_page_table;
 	empty_page_table.ignored = 1;
 	empty_page_table.present = 0;
-	for(i = 0; i < 1024; ++i){
+	for(i = 0; i < 1024; ++i){ //free the page tables
 		page_directory_entry *current_page_directory = current_page_table_descriptor->page_table + i;
 		if(!current_page_directory->ignored){
 			for(j = 0; j < 1024; ++j){
@@ -518,7 +380,7 @@ void free_page_table(PAGE_TABLE page_table_index){
 
 	list_node *current_memory_page_block_node = memory_page_map->first;
 	memory_page_block *prev_memory_page_block = 0;
-	while(current_memory_page_block_node){
+	while(current_memory_page_block_node){ //free the allocated memory
 		memory_page_block *current_memory_page_block = (memory_page_block *)current_memory_page_block_node->value;
 		
 		if(current_memory_page_block->page_table == page_table_index && (int)current_memory_page_block->base > 0x100000){

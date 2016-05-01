@@ -4,10 +4,8 @@
 #include "../c/headers/os.h"
 
 int main(int argc, char *argv[]){
-	/*char *username = "a";
-	char *password = "a";*/
+	//read get username and password from keyboard input and compares it to data from users.txt, if matches logs on to the user and opens a shell
 	while(1){
-			/*execute("shell.bin");*/
 		print("username: ");
 		char input_username[32];
 		input(input_username, 32);
@@ -46,9 +44,5 @@ int main(int argc, char *argv[]){
 			username = strtok(0, ":");
 			++uid;
 		}
-		/*if(!strcmp(username, strtok(input_password, "\n")) && !strcmp(password, strtok(input_password, "\n")))
-			execute("shell.bin");
-		else
-			print("wrong\n");*/
 	}
 }

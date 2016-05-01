@@ -8,6 +8,7 @@ FILE fopen(char *file_name, char *mode);
 int fread(char *buff, int count, FILE fd);
 int fwrite(char *buff, int count, FILE fd);
 void fclose(FILE fd);
+void exit_process(int result_code);
 void execute_from_process(char *file_name, int argc, char **argv);
 void handle_page_fault(void *address, int fault_info);
 void create_process(char *code, int length, int screen_index, char *file_name, int argc, char **argv);
