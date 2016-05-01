@@ -444,10 +444,8 @@ void handle_page_fault(void *address, int fault_info){
 	}else{
 		set_vga_colors(WHITE, RED);
 		print("no premissions to enter page\n");
-
-stop:
-		asm("hlt");
-		goto stop;
+		if((*(page_fault_error_code *)&fault_info).user)
+			exited_process(-1);
 	}
 }
 
