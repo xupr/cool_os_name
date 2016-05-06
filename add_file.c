@@ -15,6 +15,7 @@
 #define FILE_DATA_OFFSET 0x1108000
 
 typedef enum {
+	NEW_FILE,
 	REGULAR_FILE,
 	DIRECTORY
 } FILE_TYPE;
@@ -81,6 +82,8 @@ int main(int argc, char *argv[]){
 	strcpy(_inserted_file_name, inserted_file_name);
 	char *extension = strtok(_inserted_file_name, ".");
 	extension = strtok(NULL, ".");
+	if(!strcmp(extension, "bin"))
+		strtok(inserted_file_name, ".");
 
 	struct stat *stat_buff = (struct stat *)malloc(sizeof(struct stat));
 	stat(file_name, stat_buff);

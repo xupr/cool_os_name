@@ -2,6 +2,7 @@
 #include "../c/headers/stdio.h"
 #include "../c/headers/string.h"
 #include "../c/headers/os.h"
+#include "../c/headers/stat.h"
 
 int main(int argc, char **argv){ 
 	char *write_file_commad = "write", //write text to a file, usage: write [filename] [text]
@@ -12,6 +13,7 @@ int main(int argc, char **argv){
 	
 	char *out = (char *)malloc(1024*sizeof(char)), *str;
 	str = (char *)malloc(1024*sizeof(char));
+	struct stat *st_buff = (struct stat *)malloc(sizeof(struct stat));
 	while(1){
 		print("[");
 		print(argv[0]);
@@ -46,8 +48,14 @@ int main(int argc, char **argv){
 			print("\n");
 		}else if(!strcmp(command, exit_command)){
 			break;
-		}else if(!strcmp(command, exec_command)){
+		}/*else if(!strcmp(command, exec_command)){
 			execute(strtok(0, "\n"), 0, 0);
+		}*/else if(!stat(command, st_buff)){
+			int argc = 0;
+			char **argv = (char **)malloc(sizeof(char *)*32);
+			argv[0] = command;
+			while(argv[++argc] = strtok(0, " \n"));
+			execute(command, argc, argv);
 		}	
 	}
 	return 0;

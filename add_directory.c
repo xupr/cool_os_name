@@ -15,6 +15,7 @@
 #define FILE_DATA_OFFSET 0x1108000
 
 typedef enum {
+	NEW_FILE,
 	REGULAR_FILE,
 	DIRECTORY
 } FILE_TYPE;
@@ -102,7 +103,7 @@ int main(int argc, char *argv[]){
 	/*if(!strcmp(extension, "bin"))
 		current_inode->access = 0777;
 	else*/
-	current_inode->access = 0700;
+	current_inode->access = 0777;
 	current_inode->type = DIRECTORY;
 	current_inode->creator_uid = 0;
 	current_inode->size = 0;

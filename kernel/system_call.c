@@ -18,6 +18,7 @@ void *system_call_interrupt(void){ //issue a system call according to the value 
 	int length;
 	static void *heap;
 	static FILE fd;
+	static DIR dd;
 	static int bytes;
 	switch(system_call_name){
 		case PRINT:
@@ -34,26 +35,22 @@ void *system_call_interrupt(void){ //issue a system call according to the value 
 		case HEAP_START:
 			heap = get_heap_start(get_current_process()); 
 			return &heap;
-			break;
 		
 		case FOPEN:;
 			char *mode;
 			asm("" : "=b"(mode), "=d"(str));
 			fd = fopen(str, mode);
 			return &fd;
-			break;
 
 		case FWRITE:
 			asm("" : "=c"(length), "=d"(str), "=b"(fd));
 			bytes = fwrite(str, length, fd);
 			return &bytes;
-			break;
 
 		case FREAD:
 			asm("" : "=c"(length), "=d"(str), "=b"(fd));
 			bytes = fread(str, length, fd);
 			return &bytes;
-			break;
 
 		case FCLOSE:
 			asm("" : "=b"(fd));
@@ -85,13 +82,34 @@ void *system_call_interrupt(void){ //issue a system call according to the value 
 			asm("" : "=d"(str));
 			bytes = get_file_size(str);
 			return &bytes;
-			break;
 
 		case SETEUID:;
 			int new_euid;
 			asm("" : "=b"(new_euid));
 			bytes = seteuid(new_euid);
 			return &bytes;
+
+		case STAT:;
+			void *buff;
+			asm("" : "=d"(str), "=b"(buff));
+			bytes = stat(str, buff);
+			return &bytes;
+
+		case OPENDIR:
+			asm("" : "=d"(str));
+			dd = opendir_from_process(str);
+			return &dd;
+
+		case READDIR:
+			asm("" : "=d"(buff), "=c"(length), "=b"(dd));
+			bytes = readdir_from_process(buff, length, dd);
+			return &bytes;
+
+		case CLOSEDIR:
+			asm("" : "=b"(dd));
+			closedir_from_process(dd);
+			break;
+
 	}
 
 	return 0;

@@ -29,7 +29,7 @@ int main(int argc, char *argv[]){
 					seteuid(uid);
 					argv[0] = (char *)malloc(strlen(username) + 1);
 					strcpy(argv[0], username);
-					execute("shell.bin", 1, argv);
+					execute("shell", 1, argv);
 					seteuid(0);
 				}else
 					print("wrong login credentials\n");

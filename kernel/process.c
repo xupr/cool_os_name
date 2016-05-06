@@ -7,7 +7,6 @@
 #include "../headers/screen.h"
 #include "../headers/string.h"
 #include "../headers/filesystem.h"
-#include "../headers/inode.h"
 #include "../headers/interrupts.h"
 #include "../headers/portio.h"
 
@@ -47,6 +46,7 @@ typedef struct _process_descriptor{
 	PAGE_TABLE page_table;
 	void *heap_start;
 	list *open_files;
+	list *open_dirs;
 	PROCESS_STATE state;
 	int quantum;
 	int screen_index;
@@ -64,6 +64,12 @@ typedef struct{
 	char read;
 	char write;
 } open_file;
+
+typedef struct{
+	int used;
+	DIR dd;
+	int index;
+} open_dir;
 
 typedef struct{
 	char present : 1;
@@ -254,7 +260,7 @@ void pit_interrupt_handler(registers *regs){ //scheduler
 
 FILE fopen(char *file_name, char *mode){ 
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
-	inode *current_inode = (inode *)malloc(sizeof(inode)); 
+	/*inode *current_inode = (inode *)malloc(sizeof(inode)); 
 	get_inode(file_name, current_inode);
 	if(process->euid && current_inode->bound != 255){ //check permissions
 		short relevant_access_bits;
@@ -269,9 +275,11 @@ FILE fopen(char *file_name, char *mode){
 			return -1;
 		if(!strcmp(mode, "r+") && (!(relevant_access_bits&2) || !(relevant_access_bits&4)))
 			return -1;
-	}
+	}*/
 	
-	FILE fd = open(file_name); //open the file
+	FILE fd = open(file_name, mode); //open the file
+	if(fd == -1)
+		return -1;
 	list_node *current_open_file_node = process->open_files->first;
 	FILE vfd = 0;
 	while(current_open_file_node){
@@ -306,6 +314,35 @@ FILE fopen(char *file_name, char *mode){
 	return vfd;
 }
 
+DIR opendir_from_process(char *file_name){
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	DIR dd = opendir(file_name); //open the file
+	if(dd == -1)
+		return -1;
+	list_node *current_open_dir_node = process->open_dirs->first;
+	DIR vdd = 0;
+	while(current_open_dir_node){
+		open_dir *current_open_dir = (open_dir *)current_open_dir_node->value;
+		if(!current_open_dir->used)
+			break;
+
+		++vdd;
+		current_open_dir_node = current_open_dir_node->next;
+	}
+
+	open_dir *dir;
+	if(!current_open_dir_node){
+		dir = (open_dir *)malloc(sizeof(open_dir));
+		add_to_list(process->open_dirs, dir);
+	}else
+		dir = (open_dir *)current_open_dir_node->value;
+
+	dir->dd = dd;
+	dir->index = 0;
+	dir->used = 1;
+	return vdd;
+}
+
 int fread(char *buff, int count, FILE fd){ //read if permissions allow
 	if(fd == -1)
 		return -1;
@@ -317,6 +354,25 @@ int fread(char *buff, int count, FILE fd){ //read if permissions allow
 	int bytes_read = read(file->fd, buff, count);
 	file->file_offset += bytes_read;
 	return bytes_read;
+}
+
+int readdir_from_process(char *buff, int count, DIR dd){
+	if(dd == -1)
+		return -1;
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	open_dir *dir = get_list_element(process->open_dirs, dd);
+	char *file_name = readdir(dir->dd, dir->index);
+	if(!file_name)
+		return -1;
+
+	if(strlen(file_name) > count){
+		memcpy(buff, file_name, count - 1);
+		buff[count - 1] = '\0';
+	}else
+		strcpy(buff, file_name);
+	++dir->index;
+
+	return 0;
 }
 
 int fwrite(char *buff, int count, FILE fd){ //write if permissions allow
@@ -338,26 +394,56 @@ void fclose(FILE fd){ //close file if possible (no other process uses it)
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	open_file *file = get_list_element(process->open_files, fd);
 	
-	int found = 0;
 	list_node *current_process_descriptor_node = process_list->first;
-	while(current_process_descriptor_node && !found){
+	while(current_process_descriptor_node){
 		process_descriptor *current_process_descriptor = (process_descriptor *)current_process_descriptor_node->value;	
-		list_node *current_open_file_node = current_process_descriptor->open_files->first;
-		while(current_open_file_node && !found){
-			open_file *current_open_file = (open_file *)current_open_file_node->value;
-			if(current_open_file->used && current_open_file->fd == file->fd)
-				found = 1;
+		if(current_process_descriptor != process){
+			list_node *current_open_file_node = current_process_descriptor->open_files->first;
+			while(current_open_file_node){
+				open_file *current_open_file = (open_file *)current_open_file_node->value;
+				if(current_open_file->used && current_open_file->fd == file->fd){
+					file->used = 0;
+					return;
+				}
 
-			current_open_file_node = current_open_file_node->next;
+				current_open_file_node = current_open_file_node->next;
+			}
 		}
 
 		current_process_descriptor_node = current_process_descriptor_node->next;
 	}
 
-	if(!found)
-		close(file->fd);
-
+	close(file->fd);
 	file->used = 0;
+}
+
+void closedir_from_process(DIR dd){ //close dir if possible (no other process uses it)
+	if(dd == -1)
+		return;
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	open_dir *dir = get_list_element(process->open_dirs, dd);
+	
+	list_node *current_process_descriptor_node = process_list->first;
+	while(current_process_descriptor_node){
+		process_descriptor *current_process_descriptor = (process_descriptor *)current_process_descriptor_node->value;	
+		if(current_process_descriptor != process){
+			list_node *current_open_dir_node = current_process_descriptor->open_dirs->first;
+			while(current_open_dir_node){
+				open_dir *current_open_dir = (open_dir *)current_open_dir_node->value;
+				if(current_open_dir->used && current_open_dir->dd == dir->dd){
+					dir->used = 0;
+					return;
+				}
+
+				current_open_dir_node = current_open_dir_node->next;
+			}
+		}
+
+		current_process_descriptor_node = current_process_descriptor_node->next;
+	}
+
+	closedir(dir->dd);
+	dir->used = 0;
 }
 
 void handle_page_fault(void *address, int fault_info){ //handle page faults
@@ -414,6 +500,7 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	process->regs->eflags = 1<<9;
 	process->heap_start = (void *)(PROCESS_CODE_BASE + length);
 	process->open_files = create_list();
+	process->open_dirs = create_list();
 	process->state = CREATED;
 	process->screen_index = screen_index;
 	process->kernel_stack = free_kernel_stack;
@@ -513,7 +600,7 @@ void execute_from_process(char *file_name, int argc, char **argv){
 	file_name = _file_name;
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
-	inode *current_inode = (inode *)malloc(sizeof(inode)); 
+	/*inode *current_inode = (inode *)malloc(sizeof(inode)); 
 	get_inode(file_name, current_inode);
 	if(process->euid && current_inode->bound != 255){ //check permissions
 		short relevant_access_bits;
@@ -526,9 +613,12 @@ void execute_from_process(char *file_name, int argc, char **argv){
 			sti();
 			return;
 		}
+	}*/
+	if(execute(file_name, process->screen_index, argc, argv) == -1){
+		sti();
+		return;
 	}
 	process->state = BLOCKED; //execute
-	execute(file_name, process->screen_index, argc, argv);
 	process_descriptor *created_process = (process_descriptor *)get_list_element(process_list, process_list->length - 1);
 	created_process->parent = process;
 	created_process->ruid = process->euid;
@@ -549,6 +639,9 @@ int seteuid(int new_euid){ //change effective uid
 }
 
 int get_current_euid(void){ //get effective uid
+	if(current_process == -1)
+		return 0;
+
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	return process->euid;
 }

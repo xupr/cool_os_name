@@ -42,7 +42,7 @@ void init(char *memory_map_length, void *memory_map){
 	print("process initialized\n");
 	int i; //run all the login processes
 	for(i = 0; i < 4; ++i)
-		execute("login.bin", i, 0, 0);
+		execute("login", i, 0, 0);
 	sti();
 	return;	
 }

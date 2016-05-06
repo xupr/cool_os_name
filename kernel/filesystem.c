@@ -1,5 +1,4 @@
 #include "../headers/filesystem.h"
-#include "../headers/inode.h"
 #include "../headers/kernel.h"
 #include "../headers/ata.h"
 #include "../headers/heap.h"
@@ -15,6 +14,33 @@
 #define FILE_NAMES_LIST 34848
 #define FILE_SYSTEM_BASE 34816
 
+typedef enum {
+	NEW_FILE,
+	REGULAR_FILE,
+	DIRECTORY
+} FILE_TYPE;
+
+typedef struct {
+	unsigned char bound;
+	FILE_TYPE type;
+	unsigned short access;
+	unsigned int creator_uid;
+	unsigned int size;
+	unsigned int address_block;
+	unsigned short name_address;
+	unsigned int creation_date;
+	unsigned int update_date;
+} inode;
+
+struct stat{
+	FILE_TYPE type;
+	unsigned short access;
+	unsigned int creator_uid;
+	unsigned int size;
+	unsigned int creation_date;
+	unsigned int update_date;
+};
+
 typedef struct {
 	inode *inode;
 	unsigned int inode_index;
@@ -29,6 +55,13 @@ typedef struct {
 	char *data;
 } file_data_block;
 
+typedef struct {
+	inode *inode;
+	unsigned int inode_index;
+	int *inode_index_list;
+	int used;
+} dir_descriptor;
+
 static int get_free_block();
 
 static unsigned char *bound_blocks_bitmap;
@@ -36,6 +69,7 @@ static inode *inode_list;
 static unsigned char *file_names_list;
 static int inode_count = BLOCK_SIZE*SECTOR_SIZE/sizeof(inode);
 static list *open_files_list;
+static list *open_dirs_list;
 static int bitmap_length = BLOCK_SIZE*SECTOR_SIZE;
 
 void init_filesystem(void){ //initialize the file system structutes
@@ -53,37 +87,65 @@ void init_filesystem(void){ //initialize the file system structutes
 	file_names_list = (unsigned char *)malloc(BLOCK_SIZE*SECTOR_SIZE*sizeof(unsigned char));
 	ata_read_sectors(FILE_NAMES_LIST, BLOCK_SIZE, file_names_list);
 	open_files_list = create_list();
+	open_dirs_list = create_list();
 }
 
-void get_inode(char *file_name, void *buff){ //copy the inode to the buffer
-	int inode_index;
-	for(inode_index = 0; inode_index<inode_count; ++inode_index){
-		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
-			memcpy(buff, inode_list + inode_index, sizeof(inode));
-			return;
-		}
+/*void get_inode(char *file_name, void *buff){ //copy the inode to the buffer
+	int inode_index = get_inode_index_of(file_name, 0);
+	if(inode_index == -1){
+		*(char *)buff = -1;
+		return;
 	}
 
-	*(char *)buff = -1;
-}
+	memcpy(buff, inode_list + inode_index, sizeof(inode));
+}*/
 
 int get_file_size(char *file_name){ //return file size or -1 if doesnt exist
-	int inode_index;
-	for(inode_index = 0; inode_index<inode_count; ++inode_index){
-		if((inode_list+inode_index)->bound && !strcmp((char *)((inode_list+inode_index)->name_address+file_names_list), file_name)){
-			return (inode_list + inode_index)->size;
-		}
-	}
+	int inode_index = get_inode_index_of(file_name, 0);
+	if(inode_index < 0)
+		return -1;
 
-	return -1;
+	return (inode_list + inode_index)->size;
 }
 
-int get_inode_index_of(char *file_name){ 
+int request_permission(inode *current_inode, char *requested_permissions){
+	int euid = get_current_euid();
+	if(euid == 0)
+		return 1;
+
+	short relevent_access_bits;
+	if(euid == current_inode->creator_uid)
+		relevent_access_bits = current_inode->access>>6;
+	else
+		relevent_access_bits = current_inode->access&7;
+
+	if(!strcmp(requested_permissions, "r") && relevent_access_bits&4)
+		return 1;
+	if(!strcmp(requested_permissions, "w") && relevent_access_bits&2)
+		return 1;
+	if(!strcmp(requested_permissions, "r+") && relevent_access_bits&4 && relevent_access_bits&2)
+		return 1;
+	if(!strcmp(requested_permissions, "x") && relevent_access_bits&1)
+		return 1;
+
+	return 0;
+}
+
+int get_inode_index_of(char *file_name, int create_if_missing){ 
+	cli();
+	if(!strcmp(file_name, "/"))
+		return 0;
+
+	char *_file_name = malloc(strlen(file_name) + 1);
+	strcpy(_file_name, file_name);
+	file_name = _file_name;
 	int *inode_index_list = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
 	char *current_path = strtok(file_name, "/");	
+	char *next_path, *previous_path = 0;
 	int inode_index = 0;
 
 	while(current_path){ //runs from the root directory to the file to find in, terminates when got the file or the directory/file don't exists
+		next_path = strtok(0, "/");
 		ata_read_sectors(inode_list[inode_index].address_block, BLOCK_SIZE, (char *)inode_index_list);
 		int i, length = BLOCK_SIZE*SECTOR_SIZE/sizeof(int);
 		for(i = 0; i < length; ++i){
@@ -100,10 +162,54 @@ int get_inode_index_of(char *file_name){
 		else
 			inode_index = inode_index_list[i];
 
-		current_path = strtok(0, "/");
+		if(next_path && !request_permission(inode_list + inode_index, "x")){
+			set_vga_colors(WHITE, RED);
+			print("no permissions to enter ");
+			set_vga_colors(WHITE, RED);
+			print(current_path);
+			print("\n");
+			free(inode_index_list);
+			free(file_name);
+			sti();
+			return -2;
+		}
+
+		previous_path = current_path;
+		current_path = next_path;
+	}
+
+	if(!current_path){
+		free(inode_index_list);
+		free(file_name);
+		sti();
+		return inode_index;
+	}
+
+	if(!create_if_missing){
+		free(inode_index_list);
+		free(file_name);
+		sti();
+		return -1;
+	}
+
+	if(!request_permission(inode_list + inode_index, "w")){
+		set_vga_colors(WHITE, RED);
+		print("no permission to write in ");
+		set_vga_colors(WHITE, RED);
+		if(previous_path)
+			print(previous_path);
+		else 
+			print("/");
+		print("\n");
+		free(inode_index_list);
+		free(file_name);
+		sti();
+		return -2;
 	}
 	
 	while(current_path){ //runs the rest of the path creating all directories/files needed
+		print(current_path);
+		print(" doesn't exist, creating");
 		int i, length = BLOCK_SIZE*SECTOR_SIZE/sizeof(inode);
 		for(i = 0; i < length; ++i){
 			if(!inode_list[i].bound)
@@ -143,27 +249,51 @@ int get_inode_index_of(char *file_name){
 		ata_write_sectors(inode_list[inode_index].address_block, BLOCK_SIZE, (char *)inode_index_list);
 		inode_index = _inode_index;
 
-		current_path = strtok(0, "/");
+		previous_path = current_path;
+		current_path = next_path;
+		next_path = strtok(0, "/");
 		if(current_path){
 			ata_read_sectors(current_inode->address_block, BLOCK_SIZE, (char *)inode_index_list);
 		}else{
-			current_inode->type = REGULAR_FILE;
+			current_inode->type = NEW_FILE;
 			ata_write_sectors(INODE_LIST, BLOCK_SIZE, (char *)inode_list);
-			break;
+			free(inode_index_list);
+			free(file_name);
+			sti();
+			return inode_index;
 		}
 	}
-
-	free(inode_index_list);
-	return inode_index;
 }
 
-FILE open(char *file_name){
+int stat(char *file_name, void *buff){
+	int inode_index = get_inode_index_of(file_name, 0);	
+	if(inode_index < 0)
+		return -1;
+
+	inode *current_inode = inode_list + inode_index;
+	struct stat *st = (struct stat *)buff;
+	st->type = current_inode->type;
+	st->access = current_inode->access;
+	st->creator_uid = current_inode->creator_uid;
+	st->size = current_inode->size;
+	st->creation_date = current_inode->creation_date;
+	st->update_date = current_inode->update_date;
+	return 0;
+}
+
+FILE open(char *file_name, char *mode){
 	cli();
 	print("opening ");
 	print(file_name);
 	print("\n");
 
-	int inode_index = get_inode_index_of(file_name);
+	int inode_index = get_inode_index_of(file_name, 1);
+	if(inode_list[inode_index].type == NEW_FILE)
+		inode_list[inode_index].type = REGULAR_FILE;
+
+	if(inode_index == -2 || !request_permission(inode_list + inode_index, mode) || inode_list[inode_index].type != REGULAR_FILE)
+		return -1;
+
 	list_node *current_file_descriptor_node = open_files_list->first;
 	FILE file_descriptor_index = 0;
 	while(current_file_descriptor_node){ //check if file already open
@@ -202,6 +332,57 @@ FILE open(char *file_name){
 	file->used = 1;
 	sti();
 	return file_descriptor_index; 
+}
+
+DIR opendir(char *file_name){
+	cli();
+	print("opening ");
+	print(file_name);
+	print("\n");
+
+	int inode_index = get_inode_index_of(file_name, 0);
+	if(inode_list[inode_index].type == NEW_FILE)
+		inode_list[inode_index].type = DIRECTORY;
+
+	if(inode_index == -2 || !request_permission(inode_list + inode_index, "r") || inode_list[inode_index].type != DIRECTORY)
+		return -1;
+
+	list_node *current_dir_descriptor_node = open_dirs_list->first;
+	DIR dir_descriptor_index = 0;
+	while(current_dir_descriptor_node){ //check if file already open
+		dir_descriptor *current_open_dir = (dir_descriptor *)current_dir_descriptor_node->value;
+		if(current_open_dir->inode_index == inode_index && current_open_dir->used)
+			return dir_descriptor_index;
+
+		++dir_descriptor_index;
+		current_dir_descriptor_node = current_dir_descriptor_node->next;
+	}
+	
+	current_dir_descriptor_node = open_dirs_list->first;
+	dir_descriptor_index = 0;
+	while(current_dir_descriptor_node){ //getting the file descriptor index
+		dir_descriptor *current_dir_descriptor = (dir_descriptor *)current_dir_descriptor_node->value; 
+		if(!current_dir_descriptor->used)
+			break;
+
+		++dir_descriptor_index;
+		current_dir_descriptor_node = current_dir_descriptor_node->next;
+	}
+
+	dir_descriptor *dir;
+	if(!current_dir_descriptor_node){ //creating if doesnt exist
+		dir = (dir_descriptor *)malloc(sizeof(dir_descriptor));	
+		add_to_list(open_dirs_list, dir);
+	}else
+		dir = (dir_descriptor *)current_dir_descriptor_node->value;
+
+	dir->inode = inode_list+inode_index;
+	dir->inode_index = inode_index;
+	dir->inode_index_list = (int *)malloc(BLOCK_SIZE*SECTOR_SIZE);
+	ata_read_sectors(dir->inode->address_block, BLOCK_SIZE, (char *)dir->inode_index_list);
+	dir->used = 1;
+	sti();
+	return dir_descriptor_index; 
 }
 
 int get_free_block(void){ //get index of a free block and marks it as used
@@ -334,16 +515,26 @@ int read(FILE file_descriptor_index, char *buff, int count){ //read from file
 	return temp_count;
 }
 
+char *readdir(DIR dir_descriptor_index, int index){
+	int inode_index = ((dir_descriptor *)get_list_element(open_dirs_list, dir_descriptor_index))->inode_index_list[index];
+	if(inode_index == 0)
+		return 0;
+
+	return file_names_list + inode_list[inode_index].name_address;
+}
+
 void seek(FILE file_descriptor_index, int new_file_offset){ //seeks from beginning of a file
 	((file_descriptor *)get_list_element(open_files_list, file_descriptor_index))->file_offset = new_file_offset;
 }
 
-void execute(char *file_name, int screen_index, int argc, char **argv){ //executes file
+int execute(char *file_name, int screen_index, int argc, char **argv){ //executes file
 	cli();
 	print("executing ");
 	print(file_name);
 	print("\n");
-	FILE file_descriptor_index = open(file_name);
+	FILE file_descriptor_index = open(file_name, "x");
+	if(file_descriptor_index == -1)
+		return -1;
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	char *buff = (char *)malloc(current_file_descriptor->inode->size);
 	current_file_descriptor->file_offset = 0;
@@ -351,9 +542,11 @@ void execute(char *file_name, int screen_index, int argc, char **argv){ //execut
 	close(file_descriptor_index);
 	create_process(buff, current_file_descriptor->inode->size, screen_index, file_name, argc, argv);
 	sti();
+	return 0;
 }
 
 void close(FILE file_descriptor_index){ //closes file
+	cli();
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	print("closing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
@@ -371,4 +564,16 @@ void close(FILE file_descriptor_index){ //closes file
 
 	free(current_file_descriptor->file_data_blocks_list);
 	current_file_descriptor->used = 0;
+	sti();
+}
+
+void closedir(DIR dir_descriptor_index){ //closes file
+	cli();
+	dir_descriptor *current_dir_descriptor = (dir_descriptor *)get_list_element(open_dirs_list, dir_descriptor_index);	
+	print("closing ");
+	print(current_dir_descriptor->inode->name_address + file_names_list);
+	print("\n");
+	free(current_dir_descriptor->inode_index_list);
+	current_dir_descriptor->used = 0;
+	sti();
 }

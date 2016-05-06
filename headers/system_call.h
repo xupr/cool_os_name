@@ -11,7 +11,11 @@ enum SYSTEM_CALL {
 	DUMP_MEMORY_MAP,
 	DUMP_PROCESS_LIST,
 	GET_FILE_SIZE,
-	SETEUID
+	SETEUID,
+	STAT,
+	OPENDIR,
+	READDIR,
+	CLOSEDIR
 };
 
 void init_system_call(void);

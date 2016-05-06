@@ -5,9 +5,12 @@ typedef int PID;
 
 void init_process(void);
 FILE fopen(char *file_name, char *mode);
+DIR opendir_from_process(char *file_name);
 int fread(char *buff, int count, FILE fd);
+int readdir_from_process(char *buff, int count, DIR dd);
 int fwrite(char *buff, int count, FILE fd);
 void fclose(FILE fd);
+void closedir_from_process(DIR dd);
 void exit_process(int result_code);
 void execute_from_process(char *file_name, int argc, char **argv);
 void handle_page_fault(void *address, int fault_info);
