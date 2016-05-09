@@ -526,7 +526,7 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	*p_argc = argc;
 	write_virtual_memory(process->page_table, (void *)p_argc, (void *)(0x9fffff - arg_size), sizeof(int)); 
 
-	char **_argv = (char **)malloc(sizeof(int)*argc);
+	char **_argv = (char **)malloc(sizeof(char *)*argc);
 	char *current_arg = (char *)(0x9fffff - arg_size + (argc + 2)*sizeof(int));
 	for(i = 0; i < argc; ++i){
 		write_virtual_memory(process->page_table, (void *)argv[i], (void *)current_arg, strlen(argv[i]) + 1); 
@@ -535,7 +535,7 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	}
 	write_virtual_memory(process->page_table, (void *)_argv, (void *)(0x9fffff - arg_size + 8), 4*argc); 
 	*p_argc = 0x9fffff - arg_size + 8;
-	write_virtual_memory(process->page_table, (void *)(p_argc), (void *)(0x9fffff - arg_size + 4), 4*argc); 
+	write_virtual_memory(process->page_table, (void *)(p_argc), (void *)(0x9fffff - arg_size + 4), 4); 
 	sti();
 }
 

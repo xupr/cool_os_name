@@ -10,8 +10,6 @@ int main(int argc, char **argv){
 	struct stat *st_buff;
 	char *path;
 	for(i = 1; i < argc; ++i){
-		print("asd");
-		print(argv[i]);
 		if(!strcmp(argv[i], "-l"))
 			show_details = 1;
 		else
@@ -24,7 +22,6 @@ int main(int argc, char **argv){
  		st_buff = (struct stat *)malloc(sizeof(struct stat));
 		path = (char *)malloc(128);
 	}
-	print(dir_name);
 
 	DIR dd = opendir(dir_name);
 	if(dd == -1){
@@ -42,7 +39,31 @@ int main(int argc, char **argv){
 			if(dir_name[strlen(dir_name) - 1] != '/')
 				path[strlen(dir_name)] = '/';
 			strcpy(path + strlen(path), file_name);
-			print(path);
+			stat(path, st_buff);
+			if(st_buff->type == DIRECTORY)
+				print("d");
+			else
+				print("-");
+			for(i = 2; i > -1; --i){
+				int relavent_bits = (st_buff->access)>>(i*3);
+				if(relavent_bits&4)
+					print("r");
+				else
+					print("-");
+				if(relavent_bits&2)
+					print("w");
+				else
+					print("-");
+				if(relavent_bits&1)
+					print("x");
+				else
+					print("-");
+			}
+			print("\t");
+			print(itoa(st_buff->size));
+			print("\t");
+			print(file_name);
+			print("\n");
 		}else{
 			print(file_name);
 			print(" ");

@@ -135,6 +135,10 @@ int get_inode_index_of(char *file_name, int create_if_missing){
 	cli();
 	if(!strcmp(file_name, "/"))
 		return 0;
+	if(file_name[0] == '/')
+		++file_name;
+	if(file_name[strlen(file_name) - 1] == '/')
+		file_name[strlen(file_name) - 1] = '\0';
 
 	char *_file_name = malloc(strlen(file_name) + 1);
 	strcpy(_file_name, file_name);
