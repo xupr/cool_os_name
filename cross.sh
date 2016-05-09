@@ -1,10 +1,10 @@
-CROSS_COMPONENTS_LINKS=(ftp://ftp.gnu.org/gnu/binutils/binutils-2.26.tar.gz \
+CROSS_COMPONENTS_LINKS=(http://ftp.gnu.org/gnu/binutils/binutils-2.26.tar.gz\
 				https://gmplib.org/download/gmp/gmp-6.1.0.tar.xz \
 				http://www.mpfr.org/mpfr-current/mpfr-3.1.4.tar.gz \
 				http://www.bastoul.net/cloog/pages/download/count.php3?url=./cloog-0.18.4.tar.gz \
-				ftp://ftp.gnu.org/gnu/mpc/mpc-1.0.3.tar.gz \
+				http://ftp.gnu.org/gnu/mpc/mpc-1.0.3.tar.gz \
 				http://ftp.gnu.org/gnu/texinfo/texinfo-6.1.tar.gz \
-				ftp://ftp.gnu.org/gnu/gcc/gcc-4.9.3/gcc-4.9.3.tar.gz \
+				http://ftp.gnu.org/gnu/gcc/gcc-4.9.3/gcc-4.9.3.tar.gz \
 				http://isl.gforge.inria.fr/isl-0.12.2.tar.gz)
 mkdir build
 cd build
