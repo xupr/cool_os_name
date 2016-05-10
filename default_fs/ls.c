@@ -4,7 +4,7 @@
 #include "../c/headers/stat.h"
 
 int main(int argc, char **argv){
-	char *dir_name;
+	char *dir_name = 0;
 	int show_details = 0;
 	int i;
 	struct stat *st_buff;
