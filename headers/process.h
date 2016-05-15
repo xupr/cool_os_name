@@ -1,3 +1,4 @@
+#pragma once
 #include "../headers/filesystem.h"
 #define KERNEL_PID 0
 

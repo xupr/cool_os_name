@@ -1,3 +1,5 @@
+#pragma once
+
 typedef struct _list_node{
 	void *value;
 	struct _list_node *next;

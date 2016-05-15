@@ -14,54 +14,6 @@
 #define FILE_NAMES_LIST 34848
 #define FILE_SYSTEM_BASE 34816
 
-typedef enum {
-	NEW_FILE,
-	REGULAR_FILE,
-	DIRECTORY
-} FILE_TYPE;
-
-typedef struct {
-	unsigned char bound;
-	FILE_TYPE type;
-	unsigned short access;
-	unsigned int creator_uid;
-	unsigned int size;
-	unsigned int address_block;
-	unsigned short name_address;
-	unsigned int creation_date;
-	unsigned int update_date;
-} inode;
-
-struct stat{
-	FILE_TYPE type;
-	unsigned short access;
-	unsigned int creator_uid;
-	unsigned int size;
-	unsigned int creation_date;
-	unsigned int update_date;
-};
-
-typedef struct {
-	inode *inode;
-	unsigned int inode_index;
-	int *physical_address_block;
-	list *file_data_blocks_list;
-	int file_offset;
-	int used;
-} file_descriptor;
-
-typedef struct {
-	short index;
-	char *data;
-} file_data_block;
-
-typedef struct {
-	inode *inode;
-	unsigned int inode_index;
-	int *inode_index_list;
-	int used;
-} dir_descriptor;
-
 static int get_free_block();
 
 static unsigned char *bound_blocks_bitmap;
@@ -71,6 +23,7 @@ static int inode_count = BLOCK_SIZE*SECTOR_SIZE/sizeof(inode);
 static list *open_files_list;
 static list *open_dirs_list;
 static int bitmap_length = BLOCK_SIZE*SECTOR_SIZE;
+static special_file_methods *sf_methods[NUM_DEVICE_TYPES];
 
 void init_filesystem(void){ //initialize the file system structutes
 	bound_blocks_bitmap = (unsigned char *)malloc(BLOCK_SIZE*SECTOR_SIZE*sizeof(unsigned char));
@@ -90,15 +43,17 @@ void init_filesystem(void){ //initialize the file system structutes
 	open_dirs_list = create_list();
 }
 
-/*void get_inode(char *file_name, void *buff){ //copy the inode to the buffer
+inode *get_inode(char *file_name){ //copy the inode to the buffer
 	int inode_index = get_inode_index_of(file_name, 0);
-	if(inode_index == -1){
-		*(char *)buff = -1;
-		return;
-	}
+	if(inode_index == -1)
+		return 0;
+	
+	return inode_list + inode_index;
+}
 
-	memcpy(buff, inode_list + inode_index, sizeof(inode));
-}*/
+void add_special_file_method(DEVICE_TYPE d, special_file_methods *s){
+	sf_methods[d] = s;
+}
 
 int get_file_size(char *file_name){ //return file size or -1 if doesnt exist
 	int inode_index = get_inode_index_of(file_name, 0);
@@ -235,6 +190,7 @@ int get_inode_index_of(char *file_name, int create_if_missing){
 
 		current_inode->name_address = i;
 		current_inode->type = DIRECTORY;
+		current_inode->device_type = NOT_SPECIAL;
 		current_inode->bound = 1;
 		current_inode->access = 0700;
 		current_inode->creator_uid = get_current_euid();
