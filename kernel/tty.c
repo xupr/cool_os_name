@@ -18,21 +18,30 @@ int tty_write(char *buff, int count, file_descriptor *fd){
 }
 
 void init_tty(void){
+	cli();
 	inode *ind;
-	close(open("/dev/tty1", "r"));
-	ind = get_inode("/dev/tty1");
+	if(!(ind = get_inode("/dev/tty1"))){
+		close(open("/dev/tty1", "r"));
+		ind = get_inode("/dev/tty1");
+	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
-	close(open("/dev/tty2", "r"));
-	ind = get_inode("/dev/tty2");
+	if(!(ind = get_inode("/dev/tty2"))){
+		close(open("/dev/tty2", "r"));
+		ind = get_inode("/dev/tty2");
+	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
-	close(open("/dev/tty3", "r"));
-	ind = get_inode("/dev/tty3");
+	if(!(ind = get_inode("/dev/tty3"))){
+		close(open("/dev/tty3", "r"));
+		ind = get_inode("/dev/tty3");
+	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
-	close(open("/dev/tty4", "r"));
-	ind = get_inode("/dev/tty4");
+	if(!(ind = get_inode("/dev/tty4"))){
+		close(open("/dev/tty4", "r"));
+		ind = get_inode("/dev/tty4");
+	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
 	special_file_methods *sf_methods = (special_file_methods *)malloc(sizeof(special_file_methods));
@@ -41,4 +50,5 @@ void init_tty(void){
 	sf_methods->write = tty_write;
 	sf_methods->close = 0;
 	add_special_file_method(TTY, sf_methods);	
+	sti();
 }
