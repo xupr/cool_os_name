@@ -4,18 +4,16 @@
 #include "../headers/keyboard.h"
 
 void tty_open(char *file_name, char *mode, file_descriptor *fd){
-	fd->physical_address_block = (char *)((int)(file_name[strlen(file_name) - 1]) - 0x31);	
+	*((int *)fd->physical_address_block) = (int)(file_name[strlen(file_name) - 1]) - 0x31;	
 }
 
 int tty_read(char *buff, int count, file_descriptor *fd){
-	input(buff, count, (int)fd->physical_address_block);		
+	input(buff, count, *((int *)fd->physical_address_block));		
 	return strlen(buff);
 }
 
 int tty_write(char *buff, int count, file_descriptor *fd){
-	print(buff);
-	while(1);
-	print_to_other_screen(buff, (int)fd->physical_address_block);
+	print_to_other_screen(buff, *((int *)fd->physical_address_block));
 	return strlen(buff);
 }
 

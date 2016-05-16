@@ -600,20 +600,6 @@ void execute_from_process(char *file_name, int argc, char **argv){
 	file_name = _file_name;
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
-	/*inode *current_inode = (inode *)malloc(sizeof(inode)); 
-	get_inode(file_name, current_inode);
-	if(process->euid && current_inode->bound != 255){ //check permissions
-		short relevant_access_bits;
-		if(process->euid == current_inode->creator_uid)
-			relevant_access_bits = (current_inode->access>>6);
-		else
-			relevant_access_bits = (current_inode->access&7);
-		
-		if(!relevant_access_bits&1){
-			sti();
-			return;
-		}
-	}*/
 	if(execute(file_name, process->screen_index, argc, argv) == -1){
 		sti();
 		return;
