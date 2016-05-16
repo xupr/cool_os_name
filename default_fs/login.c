@@ -8,11 +8,11 @@ int main(int argc, char *argv[]){
 	while(1){
 		print("username: ");
 		char input_username[32];
-		input(input_username, 32);
+		fread(input_username, 32, stdin);
 		strtok(input_username, "\n");
 		print("password: ");
 		char input_password[32];
-		input(input_password, 32);
+		fread(input_password, 32, stdin);
 		strtok(input_password, "\n");
 		FILE fd = fopen("users.txt", "r");
 		int bytes = get_file_size("users.txt");

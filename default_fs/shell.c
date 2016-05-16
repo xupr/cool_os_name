@@ -19,7 +19,7 @@ int main(int argc, char **argv){
 		print(argv[0]);
 		print("@cool_os_name]$ ");
 		memset(str, 0, 1024);
-		input(str, 1024);
+		fread(str, 1024, stdin);
 		char *command = strtok(str, " \n");
 		if(!command)
 			continue;

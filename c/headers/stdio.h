@@ -1,3 +1,6 @@
+#define stdin 0
+#define stdout 1
+
 typedef int FILE;
 
 void print(char *str);

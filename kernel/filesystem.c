@@ -375,12 +375,15 @@ int get_free_block(void){ //get index of a free block and marks it as used
 
 int write(FILE file_descriptor_index, char *buff, int count){ //write to file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
+	if(current_file_descriptor->inode->type == SPECIAL_FILE)
+		if(sf_methods[current_file_descriptor->inode->device_type]->write != 0)
+			return sf_methods[current_file_descriptor->inode->device_type]->write(buff, count, current_file_descriptor);
+		else
+			return -1;
+
 	print("writing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
 	print("\n");
-	if(current_file_descriptor->inode->type == SPECIAL_FILE && sf_methods[current_file_descriptor->inode->device_type]->write != 0)
-		return sf_methods[current_file_descriptor->inode->device_type]->write(buff, count, current_file_descriptor);
-
 	int blocks_to_write = (current_file_descriptor->file_offset%(BLOCK_SIZE*SECTOR_SIZE) + count - 1)/(BLOCK_SIZE*SECTOR_SIZE) + 1;
 	int block_index = current_file_descriptor->file_offset/(BLOCK_SIZE*SECTOR_SIZE);
 	int data_offset = current_file_descriptor->file_offset%(BLOCK_SIZE*SECTOR_SIZE), buff_offset = 0;
@@ -439,12 +442,15 @@ int write(FILE file_descriptor_index, char *buff, int count){ //write to file
 
 int read(FILE file_descriptor_index, char *buff, int count){ //read from file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
+	if(current_file_descriptor->inode->type == SPECIAL_FILE)
+		if(sf_methods[current_file_descriptor->inode->device_type]->read != 0)
+			return sf_methods[current_file_descriptor->inode->device_type]->read(buff, count, current_file_descriptor);
+		else
+			return -1;
+
 	print("reading ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
 	print("\n");
-	if(current_file_descriptor->inode->type == SPECIAL_FILE && sf_methods[current_file_descriptor->inode->device_type]->read != 0)
-		return sf_methods[current_file_descriptor->inode->device_type]->read(buff, count, current_file_descriptor);
-
 	if(count + current_file_descriptor->file_offset >= current_file_descriptor->inode->size)
 		count = current_file_descriptor->inode->size - current_file_descriptor->file_offset - 1;
 	int blocks_to_read = (current_file_descriptor->file_offset%(BLOCK_SIZE*SECTOR_SIZE) + count - 1)/(BLOCK_SIZE*SECTOR_SIZE) + 1;

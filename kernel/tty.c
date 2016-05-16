@@ -26,24 +26,28 @@ void init_tty(void){
 	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
+	ind->access = 0666;
 	if(!(ind = get_inode("/dev/tty2"))){
 		close(open("/dev/tty2", "r"));
 		ind = get_inode("/dev/tty2");
 	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
+	ind->access = 0666;
 	if(!(ind = get_inode("/dev/tty3"))){
 		close(open("/dev/tty3", "r"));
 		ind = get_inode("/dev/tty3");
 	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
+	ind->access = 0666;
 	if(!(ind = get_inode("/dev/tty4"))){
 		close(open("/dev/tty4", "r"));
 		ind = get_inode("/dev/tty4");
 	}
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
+	ind->access = 0666;
 	special_file_methods *sf_methods = (special_file_methods *)malloc(sizeof(special_file_methods));
 	sf_methods->open = tty_open;
 	sf_methods->read = tty_read;

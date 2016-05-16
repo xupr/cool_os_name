@@ -300,6 +300,7 @@ FILE fopen(char *file_name, char *mode){
 
 	file->fd = fd;
 	file->file_offset = 0;
+	file->used = 1;
 	if(!strcmp(mode, "r")){
 		file->read = 1;
 		file->write = 0;
@@ -509,6 +510,16 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	process->euid = 0;
 	free_kernel_stack -= 0x10000;
 	add_to_list(process_list, process);
+	int io_file_length = strlen("/dev/ttyX");
+	char *stdin_file = (char *)malloc(io_file_length + 1);
+	strcpy(stdin_file, "/dev/ttyX");
+	stdin_file[io_file_length - 1] = screen_index + 0x31;
+	int _current_process = current_process;
+	current_process = process_list->length - 1;
+	fopen(stdin_file, "r");
+	fopen(stdin_file, "w");
+	free(stdin_file);
+	current_process = _current_process;
 	identity_page(process->page_table, (void *)KERNEL_BASE, KERNEL_LIMIT); //allocate and write process memory
 	identity_page(process->page_table, (void *)0x0, 0xfffff);
 	allocate_memory(process->page_table, (void *)PROCESS_CODE_BASE, length);
