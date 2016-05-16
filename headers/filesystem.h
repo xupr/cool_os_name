@@ -58,10 +58,10 @@ typedef struct {
 } dir_descriptor;
 
 typedef struct {
-	int (*open)(char *file_name, int mode, file_descriptor *fd);
+	void (*open)(char *file_name, char *mode, file_descriptor *fd);
 	int (*read)(char *buff, int count, file_descriptor *fd);
 	int (*write)(char *buff, int count, file_descriptor *fd);
-	int (*close)(file_descriptor *fd);
+	void (*close)(file_descriptor *fd);
 } special_file_methods;
 
 typedef int FILE;

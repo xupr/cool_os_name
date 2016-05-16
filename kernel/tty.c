@@ -1,4 +1,23 @@
 #include "../headers/filesystem.h"
+#include "../headers/string.h"
+#include "../headers/screen.h"
+#include "../headers/keyboard.h"
+
+void tty_open(char *file_name, char *mode, file_descriptor *fd){
+	fd->physical_address_block = (char *)((int)(file_name[strlen(file_name) - 1]) - 0x31);	
+}
+
+int tty_read(char *buff, int count, file_descriptor *fd){
+	input(buff, count, (int)fd->physical_address_block);		
+	return strlen(buff);
+}
+
+int tty_write(char *buff, int count, file_descriptor *fd){
+	print(buff);
+	while(1);
+	print_to_other_screen(buff, (int)fd->physical_address_block);
+	return strlen(buff);
+}
 
 void init_tty(void){
 	inode *ind;
@@ -19,9 +38,9 @@ void init_tty(void){
 	ind->type = SPECIAL_FILE;
 	ind->device_type = TTY;
 	special_file_methods *sf_methods = (special_file_methods *)malloc(sizeof(special_file_methods));
-	sf_methods->open = 0;
-	sf_methods->read = 0;
-	sf_methods->write = 0;
+	sf_methods->open = tty_open;
+	sf_methods->read = tty_read;
+	sf_methods->write = tty_write;
 	sf_methods->close = 0;
 	add_special_file_method(TTY, sf_methods);	
 }

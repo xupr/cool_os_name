@@ -15,14 +15,22 @@
 #define FILE_DATA_OFFSET 0x1108000
 
 typedef enum {
+	NOT_SPECIAL,
+	TTY,
+	NUM_DEVICE_TYPES
+} DEVICE_TYPE;
+
+typedef enum {
 	NEW_FILE,
 	REGULAR_FILE,
-	DIRECTORY
+	DIRECTORY,
+	SPECIAL_FILE
 } FILE_TYPE;
 
 typedef struct {
 	unsigned char bound;
 	FILE_TYPE type;
+	DEVICE_TYPE device_type;
 	unsigned short access;
 	unsigned int creator_uid;
 	unsigned int size;
@@ -105,6 +113,7 @@ int main(int argc, char *argv[]){
 	else*/
 	current_inode->access = 0777;
 	current_inode->type = DIRECTORY;
+	current_inode->device_type = NOT_SPECIAL;
 	current_inode->creator_uid = 0;
 	current_inode->size = 0;
 

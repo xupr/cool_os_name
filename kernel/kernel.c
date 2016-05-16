@@ -11,6 +11,7 @@
 #include "../headers/process.h"
 #include "../headers/system_call.h"
 #include "../headers/exception.h"
+#include "../headers/tty.h"
 
 void init(char *memory_map_length, void *memory_map);
 
@@ -40,6 +41,7 @@ void init(char *memory_map_length, void *memory_map){
 	print("file system initialized\n");
 	init_process();
 	print("process initialized\n");
+	init_tty();
 	int i; //run all the login processes
 	for(i = 0; i < 4; ++i)
 		execute("login", i, 0, 0);

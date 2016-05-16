@@ -168,7 +168,7 @@ int get_inode_index_of(char *file_name, int create_if_missing){
 	
 	while(current_path){ //runs the rest of the path creating all directories/files needed
 		print(current_path);
-		print(" doesn't exist, creating");
+		print(" doesn't exist, creating\n");
 		int i, length = BLOCK_SIZE*SECTOR_SIZE/sizeof(inode);
 		for(i = 0; i < length; ++i){
 			if(!inode_list[i].bound)
@@ -251,16 +251,22 @@ FILE open(char *file_name, char *mode){
 	if(inode_list[inode_index].type == NEW_FILE)
 		inode_list[inode_index].type = REGULAR_FILE;
 
-	if(inode_index == -2 || !request_permission(inode_list + inode_index, mode) || inode_list[inode_index].type != REGULAR_FILE)
+	if(inode_index == -2 || !request_permission(inode_list + inode_index, mode) || !(inode_list[inode_index].type == REGULAR_FILE || inode_list[inode_index].type == SPECIAL_FILE)){
+		sti();
 		return -1;
+	}
 
 	list_node *current_file_descriptor_node = open_files_list->first;
 	FILE file_descriptor_index = 0;
 	while(current_file_descriptor_node){ //check if file already open
 		file_descriptor *current_open_file = (file_descriptor *)current_file_descriptor_node->value;
-		if(current_open_file->inode_index == inode_index && current_open_file->used)
+		if(current_open_file->inode_index == inode_index && current_open_file->used){
+			if(inode_list[inode_index].type == SPECIAL_FILE && sf_methods[inode_list[inode_index].device_type]->open != 0)
+				sf_methods[inode_list[inode_index].device_type]->open(file_name, mode, current_open_file);
+			sti();
 			return file_descriptor_index;
-
+		}
+		
 		++file_descriptor_index;
 		current_file_descriptor_node = current_file_descriptor_node->next;
 	}
@@ -290,6 +296,8 @@ FILE open(char *file_name, char *mode){
 	file->file_data_blocks_list = create_list();
 	file->file_offset = 0;
 	file->used = 1;
+	if(inode_list[inode_index].type == SPECIAL_FILE && sf_methods[inode_list[inode_index].device_type]->open != 0)
+		sf_methods[inode_list[inode_index].device_type]->open(file_name, mode, file);
 	sti();
 	return file_descriptor_index; 
 }
@@ -370,6 +378,9 @@ int write(FILE file_descriptor_index, char *buff, int count){ //write to file
 	print("writing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
 	print("\n");
+	if(current_file_descriptor->inode->type == SPECIAL_FILE && sf_methods[current_file_descriptor->inode->device_type]->write != 0)
+		return sf_methods[current_file_descriptor->inode->device_type]->write(buff, count, current_file_descriptor);
+
 	int blocks_to_write = (current_file_descriptor->file_offset%(BLOCK_SIZE*SECTOR_SIZE) + count - 1)/(BLOCK_SIZE*SECTOR_SIZE) + 1;
 	int block_index = current_file_descriptor->file_offset/(BLOCK_SIZE*SECTOR_SIZE);
 	int data_offset = current_file_descriptor->file_offset%(BLOCK_SIZE*SECTOR_SIZE), buff_offset = 0;
@@ -431,6 +442,9 @@ int read(FILE file_descriptor_index, char *buff, int count){ //read from file
 	print("reading ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
 	print("\n");
+	if(current_file_descriptor->inode->type == SPECIAL_FILE && sf_methods[current_file_descriptor->inode->device_type]->read != 0)
+		return sf_methods[current_file_descriptor->inode->device_type]->read(buff, count, current_file_descriptor);
+
 	if(count + current_file_descriptor->file_offset >= current_file_descriptor->inode->size)
 		count = current_file_descriptor->inode->size - current_file_descriptor->file_offset - 1;
 	int blocks_to_read = (current_file_descriptor->file_offset%(BLOCK_SIZE*SECTOR_SIZE) + count - 1)/(BLOCK_SIZE*SECTOR_SIZE) + 1;
@@ -493,8 +507,10 @@ int execute(char *file_name, int screen_index, int argc, char **argv){ //execute
 	print(file_name);
 	print("\n");
 	FILE file_descriptor_index = open(file_name, "x");
-	if(file_descriptor_index == -1)
+	if(file_descriptor_index == -1){
+		sti();
 		return -1;
+	}
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
 	char *buff = (char *)malloc(current_file_descriptor->inode->size);
 	current_file_descriptor->file_offset = 0;
@@ -511,6 +527,9 @@ void close(FILE file_descriptor_index){ //closes file
 	print("closing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
 	print("\n");
+	if(current_file_descriptor->inode->type == SPECIAL_FILE && sf_methods[current_file_descriptor->inode->device_type]->close != 0)
+		sf_methods[current_file_descriptor->inode->device_type]->close(current_file_descriptor);
+
 	free(current_file_descriptor->physical_address_block);
 
 	list_node *current_file_data_block_node = current_file_descriptor->file_data_blocks_list->first;
