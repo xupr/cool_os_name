@@ -43,8 +43,13 @@ void init(char *memory_map_length, void *memory_map){
 	print("process initialized\n");
 	init_tty();
 	int i; //run all the login processes
-	for(i = 0; i < 4; ++i)
-		execute("login", i, 0, 0);
+	char *tty_file_name = (char *)malloc(strlen("/dev/ttyX") + 1);
+	strcpy(tty_file_name, "/dev/ttyX");
+	for(i = 0; i < 4; ++i){
+		tty_file_name[strlen(tty_file_name) - 1] = i + 0x31;
+		FILE tty_file = open(tty_file_name, "rw");
+		execute("login", tty_file, tty_file, 0, 0);
+	}
 	sti();
 	return;	
 }

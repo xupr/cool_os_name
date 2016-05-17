@@ -14,12 +14,15 @@ int main(int argc, char **argv){
 	char *out = (char *)malloc(1024*sizeof(char)), *str;
 	str = (char *)malloc(1024*sizeof(char));
 	struct stat *st_buff = (struct stat *)malloc(sizeof(struct stat));
+	FILE _stdin = dup(stdin);
+	FILE _stdout = dup(stdout);
 	while(1){
 		print("[");
 		print(argv[0]);
 		print("@cool_os_name]$ ");
 		memset(str, 0, 1024);
-		fread(str, 1024, stdin);
+		if(!fread(str, 1024, stdin))
+			break;
 		char *command = strtok(str, " \n");
 		if(!command)
 			continue;
@@ -48,14 +51,66 @@ int main(int argc, char **argv){
 			print("\n");
 		}else if(!strcmp(command, exit_command)){
 			break;
-		}/*else if(!strcmp(command, exec_command)){
-			execute(strtok(0, "\n"), 0, 0);
-		}*/else if(!stat(command, st_buff)){
-			int argc = 0;
+		}else if(!stat(command, st_buff)){
+			int argc = 1;
 			char **argv = (char **)malloc(sizeof(char *)*32);
 			argv[0] = command;
-			while(argv[++argc] = strtok(0, " \n"));
+			char *token;
+			int err = 0;
+			FILE newstdin = 0, newstdout = 0;
+			while(token = strtok(0, " \n")){
+				if(!strcmp(token, "<")){
+					if(!(token = strtok(0, " \n"))){
+						print("no file name specified");
+						err = 1;	
+						break;
+					}
+
+					FILE fd = fopen(token, "r");
+					if(fd == -1){
+						print("couldn't open ");
+						print(token);
+						err = 1;
+						break;
+					}
+
+					newstdin = fd;
+				}else if(!strcmp(token, ">")){
+					if(!(token = strtok(0, " \n"))){
+						print("no file name specified");
+						err = 1;	
+						break;
+					}
+
+					FILE fd = fopen(token, "w");
+					if(fd == -1){
+						print("couldn't open ");
+						print(token);
+						err = 1;
+						break;
+					}
+
+					newstdout = fd;
+				}else
+					argv[argc++] = token;
+			}
+
+			if(err)
+				continue;
+			
+			if(newstdout)
+				dup2(newstdout, stdout);
+			if(newstdin)
+				dup2(newstdin, stdin);
+
 			execute(command, argc, argv);
+			if(newstdout){
+				fclose(newstdout);
+				dup2(_stdout, stdout);
+			}if(newstdin){
+				fclose(newstdin);
+				dup2(_stdin, stdin);
+			}
 		}	
 	}
 	return 0;

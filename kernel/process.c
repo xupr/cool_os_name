@@ -447,6 +447,43 @@ void closedir_from_process(DIR dd){ //close dir if possible (no other process us
 	dir->used = 0;
 }
 
+FILE dup(FILE oldfd){
+	if(oldfd == -1)
+		return -1;
+
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	list_node *current_open_file_node = process->open_files->first;
+	FILE vfd = 0;
+	while(current_open_file_node){
+		open_file *current_open_file = (open_file *)current_open_file_node->value;
+		if(!current_open_file->used)
+			break;
+
+		++vfd;
+		current_open_file_node = current_open_file_node->next;
+	}
+
+	open_file *file;
+	if(!current_open_file_node){
+		file = (open_file *)malloc(sizeof(open_file));
+		add_to_list(process->open_files, file);
+	}else
+		file = (open_file *)current_open_file_node->value;
+
+	memcpy(file, get_list_element(process->open_files, oldfd), sizeof(open_file));
+	return vfd;
+}
+
+FILE dup2(FILE oldfd, FILE newfd){
+	if(oldfd == -1 || newfd == -1)
+		return -1;
+	
+	fclose(newfd);
+	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	memcpy(get_list_element(process->open_files, newfd), get_list_element(process->open_files, oldfd), sizeof(open_file));
+	return newfd;
+}
+
 void handle_page_fault(void *address, int fault_info){ //handle page faults
 	set_vga_colors(WHITE, RED);
 	print("page fault on address ");
@@ -487,7 +524,7 @@ void *get_heap_start(PID process_index){ //return heap bottom of process
 	return ((process_descriptor *)get_list_element(process_list, process_index))->heap_start;
 }
 
-void create_process(char *code, int length, int screen_index, char *file_name, int argc, char **argv){
+void create_process(char *code, int length, FILE stdin, FILE stdout, char *file_name, int argc, char **argv){
 	cli();
 	/*print(itoa(*code));*/
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor)); //create a process descriptor
@@ -503,23 +540,40 @@ void create_process(char *code, int length, int screen_index, char *file_name, i
 	process->open_files = create_list();
 	process->open_dirs = create_list();
 	process->state = CREATED;
-	process->screen_index = screen_index;
+	/*process->screen_index = screen_index;*/
 	process->kernel_stack = free_kernel_stack;
 	process->parent = 0;
 	process->ruid = 0;
 	process->euid = 0;
 	free_kernel_stack -= 0x10000;
 	add_to_list(process_list, process);
-	int io_file_length = strlen("/dev/ttyX");
+	/*int io_file_length = strlen("/dev/ttyX");
 	char *stdin_file = (char *)malloc(io_file_length + 1);
 	strcpy(stdin_file, "/dev/ttyX");
 	stdin_file[io_file_length - 1] = screen_index + 0x31;
 	int _current_process = current_process;
 	current_process = process_list->length - 1;
 	fopen(stdin_file, "r");
-	fopen(stdin_file, "w");
+	fopen(stdout_file, "w");
 	free(stdin_file);
-	current_process = _current_process;
+	current_process = _current_process;*/
+
+	open_file *stdin_file = (open_file *)malloc(sizeof(open_file));
+	stdin_file->fd = stdin;
+	stdin_file->used = 1;
+	stdin_file->file_offset = 0;
+	stdin_file->write = 0;
+	stdin_file->read = 1;
+	add_to_list(process->open_files, stdin_file);
+	
+	open_file *stdout_file = (open_file *)malloc(sizeof(open_file));
+	stdout_file->fd = stdout;
+	stdout_file->used = 1;
+	stdout_file->file_offset = 0;
+	stdout_file->write = 1;
+	stdout_file->read = 0;
+	add_to_list(process->open_files, stdout_file);
+
 	identity_page(process->page_table, (void *)KERNEL_BASE, KERNEL_LIMIT); //allocate and write process memory
 	identity_page(process->page_table, (void *)0x0, 0xfffff);
 	allocate_memory(process->page_table, (void *)PROCESS_CODE_BASE, length);
@@ -589,9 +643,9 @@ PID get_current_process(void){ //return current process PID
 	return (PID)current_process;
 }
 
-int get_process_screen_index(PID process_index){ //return process's screen index
+/*int get_process_screen_index(PID process_index){ //return process's screen index
 	return ((process_descriptor *)get_list_element(process_list, process_index))->screen_index;
-}
+}*/
 
 void execute_from_process(char *file_name, int argc, char **argv){
 	cli();
@@ -611,7 +665,9 @@ void execute_from_process(char *file_name, int argc, char **argv){
 	file_name = _file_name;
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
-	if(execute(file_name, process->screen_index, argc, argv) == -1){
+	open_file *stdin = (open_file *)get_list_element(process->open_files, 0);
+	open_file *stdout = (open_file *)get_list_element(process->open_files, 1);
+	if(execute(file_name, stdin->fd, stdout->fd, argc, argv) == -1){
 		sti();
 		return;
 	}
@@ -620,6 +676,10 @@ void execute_from_process(char *file_name, int argc, char **argv){
 	created_process->parent = process;
 	created_process->ruid = process->euid;
 	created_process->euid = process->euid;
+	open_file *stdin_file = (open_file *)get_list_element(created_process->open_files, 0);
+	stdin_file->file_offset = stdin->file_offset; 
+	open_file *stdout_file = (open_file *)get_list_element(created_process->open_files, 1);
+	stdout_file->file_offset = stdout->file_offset; 
 	sti_forced();
 	while(process->state == BLOCKED) 
 		asm("hlt");

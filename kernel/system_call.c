@@ -21,16 +21,16 @@ void *system_call_interrupt(void){ //issue a system call according to the value 
 	static DIR dd;
 	static int bytes;
 	switch(system_call_name){
-		case PRINT:
+		/*case PRINT:
 			asm("" : "=d"(str));
 			set_vga_colors(WHITE, BLACK);
 			print_to_other_screen(str, get_process_screen_index(get_current_process()));
-			break;
+			break;*/
 
-		case INPUT:
+		/*case INPUT:
 			asm("" : "=d"(str), "=c"(length));
 			input(str, length, get_process_screen_index(get_current_process()));
-			break;
+			break;*/
 
 		case HEAP_START:
 			heap = get_heap_start(get_current_process()); 
@@ -110,6 +110,17 @@ void *system_call_interrupt(void){ //issue a system call according to the value 
 			closedir_from_process(dd);
 			break;
 
+		case DUP:;
+			FILE oldfd;
+			asm("" : "=d"(oldfd));
+			fd = dup(oldfd);
+			return &fd;
+
+		case DUP2:;
+			 FILE newfd;
+			 asm("" : "=d"(oldfd), "=b"(newfd));
+			 fd =dup2(oldfd, newfd);
+			 return &fd;
 	}
 
 	return 0;

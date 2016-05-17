@@ -13,6 +13,7 @@ int tty_read(char *buff, int count, file_descriptor *fd){
 }
 
 int tty_write(char *buff, int count, file_descriptor *fd){
+	set_vga_colors(WHITE, BLACK);
 	print_to_other_screen(buff, *((int *)fd->physical_address_block));
 	return strlen(buff);
 }

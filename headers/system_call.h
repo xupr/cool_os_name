@@ -15,7 +15,9 @@ enum SYSTEM_CALL {
 	STAT,
 	OPENDIR,
 	READDIR,
-	CLOSEDIR
+	CLOSEDIR,
+	DUP,
+	DUP2
 };
 
 void init_system_call(void);

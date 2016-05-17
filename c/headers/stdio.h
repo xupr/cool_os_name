@@ -1,3 +1,4 @@
+#pragma once
 #define stdin 0
 #define stdout 1
 

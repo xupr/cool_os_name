@@ -1,4 +1,5 @@
 #include "./headers/os.h"
+#include "./headers/stdio.h"
 #include "../headers/system_call.h"
 #include "./headers/stat.h"
 
@@ -52,4 +53,16 @@ int readdir(char *buff, int count, DIR dd){
 
 void closedir(DIR dd){
 	asm("int 0x40" :: "a"(CLOSEDIR), "b"(dd));
+}
+
+FILE dup(FILE oldfd){
+	FILE fd;
+	asm("int 0x40" : "=a"(fd): "a"(DUP), "d"(oldfd));
+	return fd;
+}
+
+FILE dup2(FILE oldfd, FILE newfd){
+	FILE fd;
+	asm("int 0x40" : "=a"(fd): "a"(DUP2), "d"(oldfd), "b"(newfd));
+	return fd;
 }

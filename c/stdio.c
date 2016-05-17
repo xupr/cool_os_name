@@ -3,15 +3,17 @@
 #include "headers/string.h"
 
 void print(char *str){ //print string to the screen
-	asm("pusha");
+	fwrite(str, strlen(str), stdout);
+	/*asm("pusha");
 	asm("int 0x40" : : "d"(str), "a"(PRINT));
-	asm("popa");
+	asm("popa");*/
 }
 
 void input(char *str, int length){ //get a line of input from the keyboard
-	asm("pusha");
+	fread(str, strlen(str), stdin);
+	/*asm("pusha");
 	asm("int 0x40" : : "d"(str), "a"(INPUT), "c"(length));
-	asm("popa");
+	asm("popa");*/
 }
 
 //same I/O functions from the standard c library

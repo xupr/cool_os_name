@@ -507,7 +507,7 @@ void seek(FILE file_descriptor_index, int new_file_offset){ //seeks from beginni
 	((file_descriptor *)get_list_element(open_files_list, file_descriptor_index))->file_offset = new_file_offset;
 }
 
-int execute(char *file_name, int screen_index, int argc, char **argv){ //executes file
+int execute(char *file_name, FILE stdin, FILE stdout, int argc, char **argv){ //executes file
 	cli();
 	print("executing ");
 	print(file_name);
@@ -522,7 +522,7 @@ int execute(char *file_name, int screen_index, int argc, char **argv){ //execute
 	current_file_descriptor->file_offset = 0;
 	read(file_descriptor_index, buff, current_file_descriptor->inode->size);
 	close(file_descriptor_index);
-	create_process(buff, current_file_descriptor->inode->size, screen_index, file_name, argc, argv);
+	create_process(buff, current_file_descriptor->inode->size, stdin, stdout, file_name, argc, argv);
 	sti();
 	return 0;
 }
