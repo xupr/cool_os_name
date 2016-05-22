@@ -504,7 +504,12 @@ char *readdir(DIR dir_descriptor_index, int index){
 }
 
 void seek(FILE file_descriptor_index, int new_file_offset){ //seeks from beginning of a file
-	((file_descriptor *)get_list_element(open_files_list, file_descriptor_index))->file_offset = new_file_offset;
+	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);
+	if(current_file_descriptor->inode->type == SPECIAL_FILE){
+		if(sf_methods[current_file_descriptor->inode->device_type]->seek != 0)
+			sf_methods[current_file_descriptor->inode->device_type]->seek(current_file_descriptor, new_file_offset);
+	}else
+		current_file_descriptor->file_offset = new_file_offset;
 }
 
 int execute(char *file_name, FILE stdin, FILE stdout, int argc, char **argv){ //executes file

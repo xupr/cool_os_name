@@ -12,6 +12,7 @@
 #include "../headers/system_call.h"
 #include "../headers/exception.h"
 #include "../headers/tty.h"
+#include "../headers/sd.h"
 
 void init(char *memory_map_length, void *memory_map);
 
@@ -42,6 +43,7 @@ void init(char *memory_map_length, void *memory_map){
 	init_process();
 	print("process initialized\n");
 	init_tty();
+	init_sd();
 	int i; //run all the login processes
 	char *tty_file_name = (char *)malloc(strlen("/dev/ttyX") + 1);
 	strcpy(tty_file_name, "/dev/ttyX");

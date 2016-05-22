@@ -37,11 +37,9 @@ int main(int argc, char *argv[]){
 			}
 			
 			char *tmp = strtok(0, "\n");
-			if(!tmp){
-				print("wrong login credentials\n");
-				break;
-			}
 			username = strtok(0, ":");
+			if(!username)
+				print("wrong login credentials\n");
 			++uid;
 		}
 	}

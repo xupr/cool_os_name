@@ -54,6 +54,7 @@ void init_tty(void){
 	sf_methods->read = tty_read;
 	sf_methods->write = tty_write;
 	sf_methods->close = 0;
+	sf_methods->seek = 0;
 	add_special_file_method(TTY, sf_methods);	
 	sti();
 }

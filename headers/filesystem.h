@@ -4,6 +4,7 @@
 typedef enum {
 	NOT_SPECIAL,
 	TTY,
+	SD,
 	NUM_DEVICE_TYPES
 } DEVICE_TYPE;
 
@@ -62,6 +63,7 @@ typedef struct {
 	int (*read)(char *buff, int count, file_descriptor *fd);
 	int (*write)(char *buff, int count, file_descriptor *fd);
 	void (*close)(file_descriptor *fd);
+	void (*seek)(file_descriptor *f, int new_offset);
 } special_file_methods;
 
 typedef int FILE;

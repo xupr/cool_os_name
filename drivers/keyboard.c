@@ -18,6 +18,7 @@
 
 typedef struct {
 	char *keyboard_buffer;
+	int screen_index;
 	int keyboard_buffer_index;
 	int need_to_buffer;
 } keyboard_buffer_descriptor;
@@ -32,43 +33,55 @@ list *KEYBOARD_BEHAVIOR[256];
 scan_code_set3 COMMAND_KEYS[5] = {0, 0, 0, 0, 0};
 
 void input(char *buffer, int length, int screen_index){ //get input from keyboard
-	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, screen_index);
+	/*keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, screen_index);*/
+	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)malloc(sizeof(keyboard_buffer_descriptor));
+	keyboard_buffer->screen_index = screen_index;
+	keyboard_buffer->keyboard_buffer = (char *)malloc(length);
+	keyboard_buffer->keyboard_buffer_index = 0;
 	keyboard_buffer->need_to_buffer = 1;
+	add_to_list(keyboard_buffers, keyboard_buffer);
 	while(keyboard_buffer->keyboard_buffer_index < length && keyboard_buffer->need_to_buffer)
 		asm("hlt");
 
 	memcpy(buffer, keyboard_buffer->keyboard_buffer, keyboard_buffer->keyboard_buffer_index);
 	buffer[keyboard_buffer->keyboard_buffer_index] = '\0';
-	keyboard_buffer->keyboard_buffer_index = 0;
+	remove_from_list(keyboard_buffers, keyboard_buffer);
+	free(keyboard_buffer->keyboard_buffer);
+	free(keyboard_buffer);
 }
 
 void buffer_char(scan_code_set3 scan_code, key_state state){ //buffer a char if needed
-	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, get_current_screen_index());
-	if(keyboard_buffer->need_to_buffer){
-		if(state == KEY_UP) //don't do anything on key release
-			return;
-
-		switch(COMMAND_KEYS[0]){
-			case SCS3_LSHIFT:;
-			case SCS3_RSHIFT:;
-				char c = scancode_set3[scan_code];
-				if(c > 0x60 && c < 0x7B)
-					c -= 0x20;
-				else if(c > 0x26 && c < 0x3E)
-					c = SHIFT_ASCII[c-0x27];
-				else if(c > 0x5A && c < 0x5E)
-					c = SHIFT_ASCII[c-0x44];
-				keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = c;
-				++keyboard_buffer->keyboard_buffer_index;
-				break;
-			case 0:;
-				keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = scancode_set3[scan_code];
-				++keyboard_buffer->keyboard_buffer_index;
-				if(scancode_set3[scan_code] == '\n')
-					keyboard_buffer->need_to_buffer = 0;
-				break;
-		}
+	if(state == KEY_UP) //don't do anything on key release
 		return;
+
+	list_node *current_keyboard_buffer_node = keyboard_buffers->first;
+	int screen_index = get_current_screen_index();
+	while(current_keyboard_buffer_node){
+		keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)current_keyboard_buffer_node->value;
+		if(keyboard_buffer->screen_index == screen_index){
+			switch(COMMAND_KEYS[0]){
+				case SCS3_LSHIFT:;
+				case SCS3_RSHIFT:;
+					char c = scancode_set3[scan_code];
+					if(c > 0x60 && c < 0x7B)
+						c -= 0x20;
+					else if(c > 0x26 && c < 0x3E)
+						c = SHIFT_ASCII[c-0x27];
+					else if(c > 0x5A && c < 0x5E)
+						c = SHIFT_ASCII[c-0x44];
+					keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = c;
+					++keyboard_buffer->keyboard_buffer_index;
+					break;
+				case 0:;
+					keyboard_buffer->keyboard_buffer[keyboard_buffer->keyboard_buffer_index] = scancode_set3[scan_code];
+					++keyboard_buffer->keyboard_buffer_index;
+					if(scancode_set3[scan_code] == '\n')
+						keyboard_buffer->need_to_buffer = 0;
+					break;
+			}
+		}
+
+		current_keyboard_buffer_node = current_keyboard_buffer_node->next;
 	}
 }
 
@@ -157,10 +170,19 @@ void keyboard_scroll_command(scan_code_set3 scan_code, key_state state){ //scrol
 void keyboard_backspace_command(scan_code_set3 scan_code, key_state state){ //scroll multiple lines
 	if(state != KEY_DOWN)
 		return;
-	keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, get_current_screen_index());
-	if(keyboard_buffer->need_to_buffer && keyboard_buffer->keyboard_buffer_index != 0){
-		print("\b");
-		keyboard_buffer->keyboard_buffer[--keyboard_buffer->keyboard_buffer_index] = '\0';
+
+	list_node *current_keyboard_buffer_node = keyboard_buffers->first;
+	int screen_index = get_current_screen_index();
+	while(current_keyboard_buffer_node){
+		keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)current_keyboard_buffer_node->value;
+		if(keyboard_buffer->screen_index == screen_index){
+			if(keyboard_buffer->keyboard_buffer_index != 0){
+				print("\b");
+				keyboard_buffer->keyboard_buffer[--keyboard_buffer->keyboard_buffer_index] = '\0';
+			}
+		}
+
+		current_keyboard_buffer_node = current_keyboard_buffer_node->next;
 	}
 }
 
@@ -292,14 +314,14 @@ void add_keyboard_event(scan_code_set3 scan_code, void *event_handler){ //add ke
 
 void init_keyboard(void){ //initialize the keyboards
 	keyboard_buffers = create_list();
-	int i;
+	/*int i;
 	for(i = 0; i < 4; ++i){
 		keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)malloc(sizeof(keyboard_buffer_descriptor));
 		keyboard_buffer->keyboard_buffer = (char *)malloc(sizeof(char)*KEYBOARD_BUFF_SIZE);
 		keyboard_buffer->keyboard_buffer_index = 0;
 		keyboard_buffer->need_to_buffer = 0;
 		add_to_list(keyboard_buffers, keyboard_buffer);
-	}
+	}*/
 	init_keyboard_behavior();
 	create_IDT_descriptor(0x21, (unsigned int) &keyboard_interrupt_entry, 0x8, 0x8E);
 	outb(PS2_COMMAND_REGISTER, PS2_GET_CONFIGURATION);
