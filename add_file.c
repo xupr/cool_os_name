@@ -30,7 +30,8 @@ typedef enum {
 typedef struct {
 	unsigned char bound;
 	FILE_TYPE type;
-	DEVICE_TYPE device_type;
+	DEVICE_TYPE major;
+	unsigned int minor;
 	unsigned short access;
 	unsigned int creator_uid;
 	unsigned int size;
@@ -130,7 +131,8 @@ int main(int argc, char *argv[]){
 	else
 		current_inode->access = 0700;
 	current_inode->type = REGULAR_FILE;
-	current_inode->device_type = NOT_SPECIAL;
+	current_inode->major = NOT_SPECIAL;
+	current_inode->minor = 0;
 	current_inode->creator_uid = 0;
 	current_inode->size = file_size;
 

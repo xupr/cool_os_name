@@ -82,7 +82,7 @@ void init_sd(){
 		ind = get_inode("/dev/sda");
 	}
 	ind->type = SPECIAL_FILE;
-	ind->device_type = SD;
+	ind->major = SD;
 	ind->access = 0666;
 	special_file_methods *sf_methods = (special_file_methods *)malloc(sizeof(special_file_methods));
 	sf_methods->open = 0;

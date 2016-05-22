@@ -18,7 +18,8 @@ typedef enum {
 typedef struct {
 	unsigned char bound;
 	FILE_TYPE type;
-	DEVICE_TYPE device_type;
+	DEVICE_TYPE major;
+	unsigned int minor;
 	unsigned short access;
 	unsigned int creator_uid;
 	unsigned int size;
