@@ -27,8 +27,18 @@ int main(int argc, char **argv){
 		if(!command)
 			continue;
 		if(!strcmp(command, write_file_commad)){
-			char *file_name = strtok(0, " \n"),
-			     *data = strtok(0, "\n");
+			char *file_name = strtok(0, " \n");
+			if(!file_name){
+				print("file name needed\n");
+				continue;
+			}
+
+			char *data = strtok(0, "\n");
+			if(!data){
+				print("text needed\n");
+				continue;
+			}
+
 			FILE fd = fopen(file_name, "w");
 			if(fd != -1){
 				fwrite(data, strlen(data) + 1, fd);
@@ -37,6 +47,11 @@ int main(int argc, char **argv){
 				print("no premisions\n");
 		}else if(!strcmp(command, read_file_command)){
 			char *file_name = strtok(0, " \n");
+			if(!file_name){
+				print("file name needed\n");
+				continue;
+			}
+
 			FILE fd = fopen(file_name, "r");
 			if(fd != -1){
 				memset(out, 0, 1024);

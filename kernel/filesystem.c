@@ -251,7 +251,7 @@ FILE open(char *file_name, char *mode){
 	if(inode_list[inode_index].type == NEW_FILE)
 		inode_list[inode_index].type = REGULAR_FILE;
 
-	if(inode_index == -2 || !request_permission(inode_list + inode_index, mode) || !(inode_list[inode_index].type == REGULAR_FILE || inode_list[inode_index].type == SPECIAL_FILE)){
+	if(inode_index < 0 || !request_permission(inode_list + inode_index, mode) || !(inode_list[inode_index].type == REGULAR_FILE || inode_list[inode_index].type == SPECIAL_FILE)){
 		sti();
 		return -1;
 	}
@@ -312,7 +312,7 @@ DIR opendir(char *file_name){
 	if(inode_list[inode_index].type == NEW_FILE)
 		inode_list[inode_index].type = DIRECTORY;
 
-	if(inode_index == -2 || !request_permission(inode_list + inode_index, "r") || inode_list[inode_index].type != DIRECTORY)
+	if(inode_index < 0 || !request_permission(inode_list + inode_index, "r") || inode_list[inode_index].type != DIRECTORY)
 		return -1;
 
 	list_node *current_dir_descriptor_node = open_dirs_list->first;
@@ -375,6 +375,9 @@ int get_free_block(void){ //get index of a free block and marks it as used
 
 int write(FILE file_descriptor_index, char *buff, int count){ //write to file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
+	if(!current_file_descriptor)
+		return 0;
+
 	if(current_file_descriptor->inode->type == SPECIAL_FILE)
 		if(sf_methods[current_file_descriptor->inode->major]->write != 0)
 			return sf_methods[current_file_descriptor->inode->major]->write(buff, count, current_file_descriptor);
@@ -442,6 +445,9 @@ int write(FILE file_descriptor_index, char *buff, int count){ //write to file
 
 int read(FILE file_descriptor_index, char *buff, int count){ //read from file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
+	if(!current_file_descriptor)
+		return 0;
+
 	if(current_file_descriptor->inode->type == SPECIAL_FILE)
 		if(sf_methods[current_file_descriptor->inode->major]->read != 0)
 			return sf_methods[current_file_descriptor->inode->major]->read(buff, count, current_file_descriptor);
@@ -497,7 +503,7 @@ int read(FILE file_descriptor_index, char *buff, int count){ //read from file
 
 char *readdir(DIR dir_descriptor_index, int index){
 	int inode_index = ((dir_descriptor *)get_list_element(open_dirs_list, dir_descriptor_index))->inode_index_list[index];
-	if(inode_index == 0)
+	if(!inode_index)
 		return 0;
 
 	return file_names_list + inode_list[inode_index].name_address;
@@ -505,6 +511,9 @@ char *readdir(DIR dir_descriptor_index, int index){
 
 void seek(FILE file_descriptor_index, int new_file_offset){ //seeks from beginning of a file
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);
+	if(!current_file_descriptor)
+		return;
+
 	if(current_file_descriptor->inode->type == SPECIAL_FILE){
 		if(sf_methods[current_file_descriptor->inode->major]->seek != 0)
 			sf_methods[current_file_descriptor->inode->major]->seek(current_file_descriptor, new_file_offset);
@@ -523,6 +532,9 @@ int execute(char *file_name, FILE stdin, FILE stdout, int argc, char **argv){ //
 		return -1;
 	}
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
+	if(!current_file_descriptor)
+		return 0;
+
 	char *buff = (char *)malloc(current_file_descriptor->inode->size);
 	current_file_descriptor->file_offset = 0;
 	read(file_descriptor_index, buff, current_file_descriptor->inode->size);
@@ -535,6 +547,9 @@ int execute(char *file_name, FILE stdin, FILE stdout, int argc, char **argv){ //
 void close(FILE file_descriptor_index){ //closes file
 	cli();
 	file_descriptor *current_file_descriptor = (file_descriptor *)get_list_element(open_files_list, file_descriptor_index);	
+	if(!current_file_descriptor)
+		return;
+
 	print("closing ");
 	print(current_file_descriptor->inode->name_address + file_names_list);
 	print("\n");
@@ -560,6 +575,9 @@ void close(FILE file_descriptor_index){ //closes file
 void closedir(DIR dir_descriptor_index){ //closes file
 	cli();
 	dir_descriptor *current_dir_descriptor = (dir_descriptor *)get_list_element(open_dirs_list, dir_descriptor_index);	
+	if(!current_dir_descriptor)
+		return;
+
 	print("closing ");
 	print(current_dir_descriptor->inode->name_address + file_names_list);
 	print("\n");
