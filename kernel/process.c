@@ -199,6 +199,9 @@ PID find_process_to_run(void){ //find a process to run
 
 void switch_process(PID new_process_index, registers *regs){
 	process_descriptor *new_process = (process_descriptor *)get_list_element(process_list, new_process_index);
+	if(!new_process)
+		return;
+
 	if(new_process->state == CREATED){
 		print("running created process with PID ");
 		print(itoa(new_process_index));
@@ -240,6 +243,11 @@ void pit_interrupt_handler(registers *regs){ //scheduler
 	}
 
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process){
+		send_EOI(0);
+		return;
+	}
+
 	PID process_to_run = find_process_to_run();
 	if(process_to_run != current_process && (--process->quantum < 1 || process->state == BLOCKED)){
 		memcpy(process->regs, regs, sizeof(registers));
@@ -260,6 +268,8 @@ void pit_interrupt_handler(registers *regs){ //scheduler
 
 FILE fopen(char *file_name, char *mode){ 
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return -1;
 	/*inode *current_inode = (inode *)malloc(sizeof(inode)); 
 	get_inode(file_name, current_inode);
 	if(process->euid && current_inode->bound != 255){ //check permissions
@@ -317,6 +327,9 @@ FILE fopen(char *file_name, char *mode){
 
 DIR opendir_from_process(char *file_name){
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return -1;
+
 	DIR dd = opendir(file_name); //open the file
 	if(dd == -1)
 		return -1;
@@ -348,7 +361,13 @@ int fread(char *buff, int count, FILE fd){ //read if permissions allow
 	if(fd == -1)
 		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return -1;
+
 	open_file *file = get_list_element(process->open_files, fd);
+	if(!file)
+		return -1;
+
 	if(!file->read)
 		return -1;
 	seek(file->fd, file->file_offset);
@@ -361,7 +380,13 @@ int readdir_from_process(char *buff, int count, DIR dd){
 	if(dd == -1)
 		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return -1;
+
 	open_dir *dir = get_list_element(process->open_dirs, dd);
+	if(!dir)
+		return -1;
+
 	char *file_name = readdir(dir->dd, dir->index);
 	if(!file_name)
 		return -1;
@@ -380,7 +405,13 @@ int fwrite(char *buff, int count, FILE fd){ //write if permissions allow
 	if(fd == -1)
 		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return -1;
+
 	open_file *file = get_list_element(process->open_files, fd);
+	if(!file)
+		return -1;
+
 	if(!file->write)
 		return -1;
 	seek(file->fd, file->file_offset);
@@ -393,7 +424,12 @@ void fclose(FILE fd){ //close file if possible (no other process uses it)
 	if(fd == -1)
 		return;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return;
+
 	open_file *file = get_list_element(process->open_files, fd);
+	if(!file)
+		return;
 	
 	list_node *current_process_descriptor_node = process_list->first;
 	while(current_process_descriptor_node){
@@ -422,7 +458,12 @@ void closedir_from_process(DIR dd){ //close dir if possible (no other process us
 	if(dd == -1)
 		return;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return;
+
 	open_dir *dir = get_list_element(process->open_dirs, dd);
+	if(!dir)
+		return;
 	
 	list_node *current_process_descriptor_node = process_list->first;
 	while(current_process_descriptor_node){
@@ -452,6 +493,9 @@ FILE dup(FILE oldfd){
 		return -1;
 
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return -1;
+
 	list_node *current_open_file_node = process->open_files->first;
 	FILE vfd = 0;
 	while(current_open_file_node){
@@ -470,7 +514,11 @@ FILE dup(FILE oldfd){
 	}else
 		file = (open_file *)current_open_file_node->value;
 
-	memcpy(file, get_list_element(process->open_files, oldfd), sizeof(open_file));
+	open_file *old_file = get_list_element(process->open_files, oldfd);
+	if(!old_file)
+		return -1;
+
+	memcpy(file, old_file, sizeof(open_file));
 	return vfd;
 }
 
@@ -480,7 +528,15 @@ FILE dup2(FILE oldfd, FILE newfd){
 	
 	fclose(newfd);
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
-	memcpy(get_list_element(process->open_files, newfd), get_list_element(process->open_files, oldfd), sizeof(open_file));
+	if(!process)
+		return -1;
+	
+	open_file *old_file = get_list_element(process->open_files, oldfd);
+	open_file *new_file = get_list_element(process->open_files, newfd);
+	if(!old_file || !new_file)
+		return -1;
+
+	memcpy(new_file, old_file, sizeof(open_file));
 	return newfd;
 }
 
@@ -511,6 +567,9 @@ void handle_page_fault(void *address, int fault_info){ //handle page faults
 		set_vga_colors(WHITE, RED);
 		print("page not present\n");
 		process_descriptor *current_process_descriptor = (process_descriptor *)get_list_element(process_list, current_process);
+		if(!current_process_descriptor)
+			return;
+
 		allocate_memory(current_process_descriptor->page_table, address, 1);
 	}else{ //if there is a permissions violation, exit the process
 		set_vga_colors(WHITE, RED);
@@ -521,7 +580,11 @@ void handle_page_fault(void *address, int fault_info){ //handle page faults
 }
 
 void *get_heap_start(PID process_index){ //return heap bottom of process
-	return ((process_descriptor *)get_list_element(process_list, process_index))->heap_start;
+	process_descriptor *process = get_list_element(process_list, process_index);
+	if(!process)
+		return 0;
+	
+	return process->heap_start;
 }
 
 void create_process(char *code, int length, FILE stdin, FILE stdout, char *file_name, int argc, char **argv){
@@ -612,6 +675,11 @@ void exit_process(int result_code){ //exit process, clean resorces and run paren
 	print(itoa(result_code));
 	print("\n");
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process){
+		sti();
+		return;
+	}
+
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	free_page_table(process->page_table);
 	list_node *current_open_file_node = process->open_files->first;
@@ -665,20 +733,39 @@ void execute_from_process(char *file_name, int argc, char **argv){
 	file_name = _file_name;
 	switch_memory_map(KERNEL_PAGE_TABLE);
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process){
+		sti();
+		return;
+	}
+
 	open_file *stdin = (open_file *)get_list_element(process->open_files, 0);
 	open_file *stdout = (open_file *)get_list_element(process->open_files, 1);
+	if(!stdin || !stdout){
+		sti();
+		return;
+	}
+
 	if(execute(file_name, stdin->fd, stdout->fd, argc, argv) == -1){
 		sti();
 		return;
 	}
+
 	process->state = BLOCKED; //execute
 	process_descriptor *created_process = (process_descriptor *)get_list_element(process_list, process_list->length - 1);
 	created_process->parent = process;
 	created_process->ruid = process->euid;
 	created_process->euid = process->euid;
 	open_file *stdin_file = (open_file *)get_list_element(created_process->open_files, 0);
+	if(!stdin_file){
+		sti();
+		return;
+	}
 	stdin_file->file_offset = stdin->file_offset; 
 	open_file *stdout_file = (open_file *)get_list_element(created_process->open_files, 1);
+	if(!stdout_file){
+		sti();
+		return;
+	}
 	stdout_file->file_offset = stdout->file_offset; 
 	sti_forced();
 	while(process->state == BLOCKED) 
@@ -687,6 +774,9 @@ void execute_from_process(char *file_name, int argc, char **argv){
 
 int seteuid(int new_euid){ //change effective uid
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return -1;
+
 	if(process->ruid == 0){
 		process->euid = new_euid;
 		return 0;
@@ -700,5 +790,8 @@ int get_current_euid(void){ //get effective uid
 		return 0;
 
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
+	if(!process)
+		return 0;
+
 	return process->euid;
 }
