@@ -30,7 +30,7 @@ static int status = 0;
 static key_state state = KEY_DOWN;
 
 list *KEYBOARD_BEHAVIOR[256];
-scan_code_set3 COMMAND_KEYS[5] = {0, 0, 0, 0, 0};
+list *COMMAND_KEYS;
 
 void input(char *buffer, int length, int screen_index){ //get input from keyboard
 	/*keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)get_list_element(keyboard_buffers, screen_index);*/
@@ -59,7 +59,8 @@ void buffer_char(scan_code_set3 scan_code, key_state state){ //buffer a char if 
 	while(current_keyboard_buffer_node){
 		keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)current_keyboard_buffer_node->value;
 		if(keyboard_buffer->screen_index == screen_index){
-			switch(COMMAND_KEYS[0]){
+			scan_code_set3 key1 = (scan_code_set3)get_list_element(COMMAND_KEYS, 0);
+			switch(key1){
 				case SCS3_LSHIFT:;
 				case SCS3_RSHIFT:;
 					char c = scancode_set3[scan_code];
@@ -90,7 +91,8 @@ void print_char(scan_code_set3 scan_code, key_state state){ //print a char
 		return;
 
 	char s[2] = {0, 0};
-	switch(COMMAND_KEYS[0]){
+	scan_code_set3 key1 = (scan_code_set3)get_list_element(COMMAND_KEYS, 0);
+	switch(key1){
 		case SCS3_LSHIFT:;
 		case SCS3_RSHIFT:;
 			char c = scancode_set3[scan_code];
@@ -115,22 +117,22 @@ void print_char(scan_code_set3 scan_code, key_state state){ //print a char
 }
 
 void keyboard_command_char(scan_code_set3 scan_code, key_state state){ //add/remove a command char to the keyboard commands buffer
-	int i = 0;
-	if(state == KEY_DOWN){
-		while(COMMAND_KEYS[i++] != 0);
-		COMMAND_KEYS[i-1] = scan_code;
-	}else{
-		while(COMMAND_KEYS[i++] != scan_code);
-		COMMAND_KEYS[i-1] = 0;
-	}
-	return;
+	if(state == KEY_DOWN)
+		add_to_list(COMMAND_KEYS, (void *)scan_code);
+	else
+		remove_from_list(COMMAND_KEYS, (void *)scan_code);
 }
 
 void switch_screens_command(scan_code_set3 scan_code, key_state state){ //switch screens if needed
 	if(state == KEY_DOWN)
 		return;
 	
-	if((COMMAND_KEYS[0] == SCS3_LCTRL && COMMAND_KEYS[1] == SCS3_LALT) || (COMMAND_KEYS[1] == SCS3_LCTRL && COMMAND_KEYS[0] == SCS3_LALT)){
+	scan_code_set3 key1 = (scan_code_set3)get_list_element(COMMAND_KEYS, 0);
+	scan_code_set3 key2 = (scan_code_set3)get_list_element(COMMAND_KEYS, 1);
+	if(!key1 || !key2)
+		return;
+
+	if((key1 == SCS3_LCTRL && key2 == SCS3_LALT) || (key2 == SCS3_LCTRL && key1 == SCS3_LALT)){
 		switch(scan_code){
 			case SCS3_1:
 				switch_screen(0);
@@ -314,6 +316,7 @@ void add_keyboard_event(scan_code_set3 scan_code, void *event_handler){ //add ke
 
 void init_keyboard(void){ //initialize the keyboards
 	keyboard_buffers = create_list();
+	COMMAND_KEYS = create_list();
 	/*int i;
 	for(i = 0; i < 4; ++i){
 		keyboard_buffer_descriptor *keyboard_buffer = (keyboard_buffer_descriptor *)malloc(sizeof(keyboard_buffer_descriptor));
