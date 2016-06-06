@@ -47,7 +47,7 @@ static list *memory_page_map;
 
 static PAGE_TABLE kernel_page_table_index = 0;
 
-void dump_memory_map(void){
+void dump_memory_map(void){ //prints the memory map
 	print("\n");
 	set_tab_size(12);
 	print("page table\tbase\tlimit\n");
@@ -67,14 +67,14 @@ void dump_memory_map(void){
 	print("\n");
 }
 
-static int compare_memory_blocks(void *a, void *b){
+static int compare_memory_blocks(void *a, void *b){ //compares two memory blocks for sorting
 	unsigned int c = (unsigned int)(((memory_information_block *)a)->base), d = (unsigned int)(((memory_information_block *)b)->base);
 	if(c > d)
 		return 1;
 	return -2;
 }
 
-void init_memory(char *memory_map_length, void *memory_map){ 
+void init_memory(char *memory_map_length, void *memory_map){ //initialize memory and it structures 
 	memory_page_map = create_list(); //initialize the memory map
 	int i, j;
 	sort(memory_map, sizeof(memory_information_block), *memory_map_length, compare_memory_blocks);
@@ -112,12 +112,6 @@ void init_memory(char *memory_map_length, void *memory_map){
 		}
 
 		add_to_list(memory_page_map, page_block);
-		/*print(itoa((int)current_block->base));
-		print("   ");
-		print(itoa(current_block->limit));
-		print("   ");
-		print(itoa(current_block->type));
-		print("\n");*/
 	}
 	
 	print("--memory map inititalized\n");
@@ -129,7 +123,7 @@ void init_memory(char *memory_map_length, void *memory_map){
 	print("--paging initiailzed\n");
 }
 
-PAGE_TABLE create_page_table(){
+PAGE_TABLE create_page_table(){ //create a new page table
 	cli();
 	list_node *current = page_table_list->first;
 	char found = 0;
@@ -173,7 +167,7 @@ void switch_memory_map(PAGE_TABLE page_table_index){ //switch to a different pag
 	sti();
 }
 
-void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){
+void allocate_memory(PAGE_TABLE page_table_index, void *base, int limit){ //alocate memory for a page table
 	cli();
 	int pages = (limit + ((int)base)%PAGE_SIZE - 1)/PAGE_SIZE + 1;
 	int page_directories = (limit + ((int)base)%0x400000 - 1)/0x400000 + 1;
@@ -366,7 +360,7 @@ void identity_page(PAGE_TABLE page_table_index, void *base, int limit){ //same a
 	sti();
 }
 
-void free_page_table(PAGE_TABLE page_table_index){
+void free_page_table(PAGE_TABLE page_table_index){ //free page tables resources
 	cli();
 	page_table_descriptor *current_page_table_descriptor = (page_table_descriptor *)get_list_element(page_table_list, page_table_index);
 	int i, j;
