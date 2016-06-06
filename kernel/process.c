@@ -140,11 +140,11 @@ void dump_process_list(void){ //print data on active processes
 	sti();
 }
 
-void switch_kernel_stack(int new_kernel_stack){
+void switch_kernel_stack(int new_kernel_stack){ //switch kernel stacks
 	*(int *)(tss + 4) = new_kernel_stack;
 }
 
-void init_process(void){
+void init_process(void){ //initialize process data
 	char gdt[6]; //initialize tss
 	asm("sgdt %0" : "=m"(gdt));
 	char *c = *((char **)(gdt + 2)) + 5*8;
@@ -197,7 +197,7 @@ PID find_process_to_run(void){ //find a process to run
 	return current_process;
 }
 
-void switch_process(PID new_process_index, registers *regs){
+void switch_process(PID new_process_index, registers *regs){ //switch processes
 	process_descriptor *new_process = (process_descriptor *)get_list_element(process_list, new_process_index);
 	if(!new_process)
 		return;
@@ -266,26 +266,10 @@ void pit_interrupt_handler(registers *regs){ //scheduler
 	return;
 }
 
-FILE fopen(char *file_name, char *mode){ 
+FILE fopen(char *file_name, char *mode){ //same as open just per process
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	if(!process)
 		return -1;
-	/*inode *current_inode = (inode *)malloc(sizeof(inode)); 
-	get_inode(file_name, current_inode);
-	if(process->euid && current_inode->bound != 255){ //check permissions
-		short relevant_access_bits;
-		if(process->euid == current_inode->creator_uid)
-			relevant_access_bits = (current_inode->access>>6);
-		else
-			relevant_access_bits = (current_inode->access&7);
-
-		if(!strcmp(mode, "r") && !(relevant_access_bits&4))
-			return -1;
-		if(!strcmp(mode, "w") && !(relevant_access_bits&2))
-			return -1;
-		if(!strcmp(mode, "r+") && (!(relevant_access_bits&2) || !(relevant_access_bits&4)))
-			return -1;
-	}*/
 	
 	FILE fd = open(file_name, mode); //open the file
 	if(fd == -1)
@@ -325,7 +309,7 @@ FILE fopen(char *file_name, char *mode){
 	return vfd;
 }
 
-DIR opendir_from_process(char *file_name){
+DIR opendir_from_process(char *file_name){ //same as opendir just per process
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
 	if(!process)
 		return -1;
@@ -376,7 +360,7 @@ int fread(char *buff, int count, FILE fd){ //read if permissions allow
 	return bytes_read;
 }
 
-int readdir_from_process(char *buff, int count, DIR dd){
+int readdir_from_process(char *buff, int count, DIR dd){ //same a readdir just per process
 	if(dd == -1)
 		return -1;
 	process_descriptor *process = (process_descriptor *)get_list_element(process_list, current_process);
@@ -488,7 +472,7 @@ void closedir_from_process(DIR dd){ //close dir if possible (no other process us
 	dir->used = 0;
 }
 
-FILE dup(FILE oldfd){
+FILE dup(FILE oldfd){ //duplicate the given file descriptor
 	if(oldfd == -1)
 		return -1;
 
@@ -522,7 +506,7 @@ FILE dup(FILE oldfd){
 	return vfd;
 }
 
-FILE dup2(FILE oldfd, FILE newfd){
+FILE dup2(FILE oldfd, FILE newfd){ //duplicate the oldfd into newfd
 	if(oldfd == -1 || newfd == -1)
 		return -1;
 	
@@ -587,9 +571,8 @@ void *get_heap_start(PID process_index){ //return heap bottom of process
 	return process->heap_start;
 }
 
-void create_process(char *code, int length, FILE stdin, FILE stdout, char *file_name, int argc, char **argv){
+void create_process(char *code, int length, FILE stdin, FILE stdout, char *file_name, int argc, char **argv){ //create a process
 	cli();
-	/*print(itoa(*code));*/
 	process_descriptor *process = (process_descriptor *)malloc(sizeof(process_descriptor)); //create a process descriptor
 	process->image_name = (char *)malloc(strlen(file_name) + 1);
 	strcpy(process->image_name, file_name);
@@ -603,23 +586,12 @@ void create_process(char *code, int length, FILE stdin, FILE stdout, char *file_
 	process->open_files = create_list();
 	process->open_dirs = create_list();
 	process->state = CREATED;
-	/*process->screen_index = screen_index;*/
 	process->kernel_stack = free_kernel_stack;
 	process->parent = 0;
 	process->ruid = 0;
 	process->euid = 0;
 	free_kernel_stack -= 0x10000;
 	add_to_list(process_list, process);
-	/*int io_file_length = strlen("/dev/ttyX");
-	char *stdin_file = (char *)malloc(io_file_length + 1);
-	strcpy(stdin_file, "/dev/ttyX");
-	stdin_file[io_file_length - 1] = screen_index + 0x31;
-	int _current_process = current_process;
-	current_process = process_list->length - 1;
-	fopen(stdin_file, "r");
-	fopen(stdout_file, "w");
-	free(stdin_file);
-	current_process = _current_process;*/
 
 	open_file *stdin_file = (open_file *)malloc(sizeof(open_file));
 	stdin_file->fd = stdin;
@@ -710,10 +682,6 @@ void exit_process(int result_code){ //exit process, clean resorces and run paren
 PID get_current_process(void){ //return current process PID
 	return (PID)current_process;
 }
-
-/*int get_process_screen_index(PID process_index){ //return process's screen index
-	return ((process_descriptor *)get_list_element(process_list, process_index))->screen_index;
-}*/
 
 void execute_from_process(char *file_name, int argc, char **argv){
 	cli();
