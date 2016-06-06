@@ -44,21 +44,6 @@ typedef struct {
 int find_free_blocks(char *block_buff, int blocks_needed){
 	int i, j, count = 0, start;
 	for(i = 0; i < BLOCK_SIZE*8; ++i){
-		/*char c = block_buff[i];
-		for(j = 0; j < 8; ++j){
-			if((c>>j)&1 == 0){
-				printf("asd%d\n", i*8 + j);
-				if(count == 0)
-					start = i*8 + j;
-				
-				if(++count == blocks_needed)
-					break;
-			}else
-				count = 0;
-		}
-
-		if(count == blocks_needed)
-			break;*/
 		if(((block_buff[i/8]>>(i%8))&1) == 0){
 			if(count == 0)
 				start = i;
@@ -181,22 +166,4 @@ int main(int argc, char *argv[]){
 	fseek(fd, INODE_LIST_OFFSET, SEEK_SET);
 	fwrite(inode_list_buff, 1, BLOCK_SIZE, fd);
 	fclose(fd);
-	/*struct stat *buff = (struct stat *)malloc(sizeof(struct stat));
-	stat("./shell.bin", buff);
-	printf("%d\n", buff->st_size);
-	FILE *fd = fopen("./os_copy.img", "r+");
-	fseek(fd, INODE_OFFSET, SEEK_SET);
-	inode *ind = (inode *)malloc(sizeof(inode));
-	fgets((char *)ind, sizeof(inode), fd);
-	printf("%d\n", ind->name_address);
-	ind->size = buff->st_size + 1;
-	fseek(fd, INODE_OFFSET, SEEK_SET);
-	fwrite(ind, sizeof(inode), 1, fd);
-	char i[24];
-	itoa(FILE_DATA_OFFSET + buff->st_size, i, 16);
-	printf("%s\n", i);
-	fseek(fd, FILE_DATA_OFFSET + buff->st_size, SEEK_SET);
-//	printf("%d\n", fgetc(fd));	
-	char i = 255;
-	fwrite(&i, 1, 1, fd);*/
 }
