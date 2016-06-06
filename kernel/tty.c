@@ -3,18 +3,18 @@
 #include "../headers/screen.h"
 #include "../headers/keyboard.h"
 
-int tty_read(char *buff, int count, file_descriptor *fd){
+int tty_read(char *buff, int count, file_descriptor *fd){ //reads from terminal
 	input(buff, count, fd->inode->minor);		
 	return strlen(buff);
 }
 
-int tty_write(char *buff, int count, file_descriptor *fd){
+int tty_write(char *buff, int count, file_descriptor *fd){ //writes to terminal
 	set_vga_colors(WHITE, BLACK);
 	print_to_other_screen(buff, fd->inode->minor);
 	return strlen(buff);
 }
 
-void init_tty(void){
+void init_tty(void){ //initializes the terminal special file
 	cli();
 	inode *ind;
 	if(!(ind = get_inode("/dev/tty1"))){
