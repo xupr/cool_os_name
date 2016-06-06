@@ -3,7 +3,7 @@
 
 #define SECTOR_SIZE 512
 
-int sd_read(char *buff, int count, file_descriptor *fd){
+int sd_read(char *buff, int count, file_descriptor *fd){ //reads from the disk
 	int start_sector = fd->file_offset/SECTOR_SIZE;
 	int end_sector = (fd->file_offset + count)/SECTOR_SIZE;
 	int start_offset = fd->file_offset%SECTOR_SIZE;
@@ -35,7 +35,7 @@ int sd_read(char *buff, int count, file_descriptor *fd){
 	return count;
 }
 
-int sd_write(char *buff, int count, file_descriptor *fd){
+int sd_write(char *buff, int count, file_descriptor *fd){ //writes to the disk
 	int start_sector = fd->file_offset/SECTOR_SIZE;
 	int end_sector = (fd->file_offset + count)/SECTOR_SIZE;
 	int start_offset = fd->file_offset%SECTOR_SIZE;
@@ -70,11 +70,11 @@ int sd_write(char *buff, int count, file_descriptor *fd){
 	return count;
 }
 
-void sd_seek(file_descriptor *fd, int new_offset){
+void sd_seek(file_descriptor *fd, int new_offset){ //seeks the disk
 	fd->file_offset = new_offset;
 }
 
-void init_sd(){
+void init_sd(){ //initialize the sd special file
 	cli();
 	inode *ind;
 	if(!(ind = get_inode("/dev/sda"))){
