@@ -21,17 +21,6 @@ void *system_call_interrupt(void){ //issue a system call according to the value 
 	static DIR dd;
 	static int bytes;
 	switch(system_call_name){
-		/*case PRINT:
-			asm("" : "=d"(str));
-			set_vga_colors(WHITE, BLACK);
-			print_to_other_screen(str, get_process_screen_index(get_current_process()));
-			break;*/
-
-		/*case INPUT:
-			asm("" : "=d"(str), "=c"(length));
-			input(str, length, get_process_screen_index(get_current_process()));
-			break;*/
-
 		case HEAP_START:
 			heap = get_heap_start(get_current_process()); 
 			return &heap;
