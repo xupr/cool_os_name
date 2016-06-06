@@ -51,7 +51,7 @@ inode *get_inode(char *file_name){ //copy the inode to the buffer
 	return inode_list + inode_index;
 }
 
-void add_special_file_method(DEVICE_TYPE d, special_file_methods *s){
+void add_special_file_method(DEVICE_TYPE d, special_file_methods *s){ //assign a major device number with its methods
 	sf_methods[d] = s;
 }
 
@@ -63,7 +63,7 @@ int get_file_size(char *file_name){ //return file size or -1 if doesnt exist
 	return (inode_list + inode_index)->size;
 }
 
-int request_permission(inode *current_inode, char *requested_permissions){
+int request_permission(inode *current_inode, char *requested_permissions){ //request premissions to access a file
 	int euid = get_current_euid();
 	if(euid == 0)
 		return 1;
@@ -86,7 +86,7 @@ int request_permission(inode *current_inode, char *requested_permissions){
 	return 0;
 }
 
-int get_inode_index_of(char *file_name, int create_if_missing){ 
+int get_inode_index_of(char *file_name, int create_if_missing){ //returns the inode index of a file name, optionaly creates everything if doesn't exists
 	cli();
 	if(!strcmp(file_name, "/"))
 		return 0;
@@ -225,7 +225,7 @@ int get_inode_index_of(char *file_name, int create_if_missing){
 	}
 }
 
-int stat(char *file_name, void *buff){
+int stat(char *file_name, void *buff){ //gets stats on a file
 	int inode_index = get_inode_index_of(file_name, 0);	
 	if(inode_index < 0)
 		return -1;
@@ -241,7 +241,7 @@ int stat(char *file_name, void *buff){
 	return 0;
 }
 
-FILE open(char *file_name, char *mode){
+FILE open(char *file_name, char *mode){ //opens a file
 	cli();
 	print("opening ");
 	print(file_name);
@@ -302,7 +302,7 @@ FILE open(char *file_name, char *mode){
 	return file_descriptor_index; 
 }
 
-DIR opendir(char *file_name){
+DIR opendir(char *file_name){ //opens a directory
 	cli();
 	print("opening ");
 	print(file_name);
@@ -501,7 +501,7 @@ int read(FILE file_descriptor_index, char *buff, int count){ //read from file
 	return temp_count;
 }
 
-char *readdir(DIR dir_descriptor_index, int index){
+char *readdir(DIR dir_descriptor_index, int index){ //get a file name from a directory at index
 	int inode_index = ((dir_descriptor *)get_list_element(open_dirs_list, dir_descriptor_index))->inode_index_list[index];
 	if(!inode_index)
 		return 0;
